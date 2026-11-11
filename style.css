@@ -1,19 +1,126 @@
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; }
+body { display: grid; place-items: center; background: #222; }
+
+/* 1920×1080 の画面をコンテナ単位で等比縮小する。 */
+#game-screen {
+    /* キャラクター調整値。PNGの透明余白を含む画像全体の幅と左上座標。 */
+    --player-width: 122cqw;
+    --player-left: -25cqw;
+    --player-top: 19cqh;
+    --cpu-width: 37cqw;
+    --cpu-left: 39.5cqw;
+    --cpu-top: 20.3cqh;
+    position: relative;
+    width: min(100vw, 177.7778vh);
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    container-type: size;
+    background: url("assets/backgrounds/背景_リビング.png") center / cover no-repeat;
+}
+
+/* 元のPNG全体を等比表示し、透明余白込みで位置を合わせる。 */
+#cpu, #player, #carrot { position: absolute; display: block; height: auto; max-width: none; }
+#cpu { width: var(--cpu-width); left: var(--cpu-left); top: var(--cpu-top); z-index: 2; }
+#carrot { width: 10cqw; left: 56cqw; top: 71cqh; transform: rotate(-83deg); z-index: 3; }
+#player { width: var(--player-width); left: var(--player-left); top: var(--player-top); z-index: 4; }
+
+#battle-ui {
+    --gauge-icon-size: 4.63cqh;
+    --gauge-icon-gap: 0.55cqh;
+    --gauge-side-inset: 1.82cqw;
+    --gauge-track-width: 38.86cqw;
+    --gauge-row-lead: calc(var(--gauge-icon-size) + var(--gauge-icon-gap));
+    --gauge-row-width: calc(var(--gauge-track-width) + var(--gauge-row-lead) + var(--gauge-row-lead));
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+.gauge-group {
+    position: absolute;
+    top: 2.65cqh;
+    width: var(--gauge-row-width);
+    display: grid;
+    gap: 0.9cqh;
+}
+.player-gauges { left: var(--gauge-side-inset); }
+.cpu-gauges { right: calc(var(--gauge-side-inset) - var(--gauge-row-lead)); }
+.gauge-row {
+    position: relative;
+    display: grid;
+    /* 右の空列を左のアイコン列と対称にして、中央ゲージ本体を画面中心へ置く。 */
+    grid-template-columns: var(--gauge-icon-size) var(--gauge-track-width) var(--gauge-icon-size);
+    column-gap: var(--gauge-icon-gap);
     align-items: center;
-    background: #acf7ae;
-    font-family: sans-serif;
+    width: var(--gauge-row-width);
+    height: var(--gauge-icon-size);
+}
+.gauge-icon {
+    display: block;
+    width: var(--gauge-icon-size);
+    height: var(--gauge-icon-size);
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
+}
+.gauge-track { width: var(--gauge-track-width); }
+.gauge {
+    height: 3.7cqh;
+    padding: 0.42cqh;
+    border: 0.19cqh solid #d8b17b;
+    border-radius: 1.48cqh;
+    background: #493a2e;
+}
+.gauge-fill { height: 100%; border-radius: 1cqh; }
+.stamina .gauge-fill { width: 100%; background: #e8c85a; }
+.roar .gauge-fill { width: 100%; background: #f16b7a; }
+
+#battle-center { position: absolute; top: 1.72cqh; left: 50%; width: 16cqw; transform: translateX(-50%); text-align: center; }
+#stage-logo { position: relative; width: 8.8cqw; height: 6.9cqh; margin: 0 auto; }
+#stage-label { position: absolute; display: block; width: 100%; height: auto; left: 0; top: -3.1cqh; }
+#battle-timer {
+    position: relative;
+    margin-top: -2.5cqh;
+    color: #fff;
+    font: 900 8.9cqh/1 Arial, sans-serif;
+    letter-spacing: -0.3cqw;
+    -webkit-text-stroke: 0.28cqh #261a15;
+    paint-order: stroke fill;
+    text-shadow: 0.2cqh 0.3cqh 0 #261a15;
 }
 
-main {
-    text-align: center;
+#carrot-gauge {
+    --gauge-row-width: calc(100cqw - var(--gauge-side-inset) - var(--gauge-side-inset));
+    --gauge-track-width: calc(var(--gauge-row-width) - var(--gauge-row-lead) - var(--gauge-row-lead));
+    --carrot-player-share: 40%;
+    --carrot-cpu-share: 23%;
+    position: absolute;
+    left: 50%;
+    top: 14.385cqh;
+    transform: translateX(-50%);
 }
-
-button {
-    padding: 12px 32px;
-    font-size: 20px;
-    cursor: pointer;
+.carrot-gauge-track {
+    position: relative;
+    overflow: hidden;
+    background: #fff5e6;
+}
+.carrot-gauge-player, .carrot-gauge-cpu {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border: 0.1cqh solid #493a2e;
+    border-radius: 0.46cqh;
+}
+.carrot-gauge-player { left: 0; width: var(--carrot-player-share); background: #66bbaf; }
+.carrot-gauge-cpu { right: 0; width: var(--carrot-cpu-share); background: #e8a36b; }
+.carrot-gauge-center { position: absolute; left: 50%; top: 0; height: 100%; border-left: 0.28cqh solid #493a2e; transform: translateX(-50%); }
+#finish-label {
+    position: absolute;
+    top: 19.7cqh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font: 900 3cqh/1 Arial, sans-serif;
+    text-shadow: 0.2cqh 0.2cqh 0 #261a15;
 }

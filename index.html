@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,13 +7,47 @@
     <link rel="stylesheet" href="style.css">
     <script src="game.js" defer></script>
 </head>
-
 <body>
-    <main>
-        <h1>ふれあいまーもっと</h1>
-        <p>ゲーム制作スタート！</p>
-        <button id="start-button">ゲーム開始</button>
+    <main id="game-screen" aria-label="ふれあいまーもっと 戦闘画面">
+        <img id="cpu" src="assets/characters/ノーマル.png" alt="CPUのまーもっと">
+        <img id="carrot" src="assets/carrots/リアルにんじん.png" alt="にんじん">
+        <img id="player" src="assets/characters/プレイヤー.png" alt="プレイヤーのまーもっと">
+
+        <div id="battle-ui">
+            <div class="gauge-group player-gauges" aria-label="プレイヤーのゲージ">
+                <div class="gauge-row">
+                    <img class="gauge-icon" src="assets/mark/マーク_スタミナ.png" alt="" aria-hidden="true">
+                    <div class="gauge-track gauge stamina" aria-label="スタミナ"><div class="gauge-fill"></div></div>
+                </div>
+                <div class="gauge-row">
+                    <img class="gauge-icon" src="assets/mark/マーク_咆哮.png" alt="" aria-hidden="true">
+                    <div class="gauge-track gauge roar" aria-label="咆哮"><div class="gauge-fill"></div></div>
+                </div>
+            </div>
+            <div class="gauge-group cpu-gauges" aria-label="CPUのゲージ">
+                <div class="gauge-row">
+                    <img class="gauge-icon" src="assets/mark/マーク_スタミナ.png" alt="" aria-hidden="true">
+                    <div class="gauge-track gauge stamina" aria-label="スタミナ"><div class="gauge-fill"></div></div>
+                </div>
+                <div class="gauge-row">
+                    <img class="gauge-icon" src="assets/mark/マーク_咆哮.png" alt="" aria-hidden="true">
+                    <div class="gauge-track gauge roar" aria-label="咆哮"><div class="gauge-fill"></div></div>
+                </div>
+            </div>
+            <div id="battle-center">
+                <div id="stage-logo"><img id="stage-label" src="assets/stage/STAGE_1.png" alt="STAGE 1"></div>
+                <div id="battle-timer" aria-label="残り時間 100">100</div>
+            </div>
+            <div id="carrot-gauge" class="gauge-row" aria-label="にんじん争奪ゲージ">
+                <img class="gauge-icon" src="assets/mark/マーク_にんじん.png" alt="" aria-hidden="true">
+                <div class="gauge-track gauge carrot-gauge-track">
+                    <div class="carrot-gauge-player"></div>
+                    <div class="carrot-gauge-cpu"></div>
+                    <div class="carrot-gauge-center"></div>
+                </div>
+            </div>
+            <div id="finish-label">FINISH</div>
+        </div>
     </main>
 </body>
-
 </html>
