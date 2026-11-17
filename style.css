@@ -54,6 +54,46 @@ body {
     z-index: 2;
 }
 
+#cpu.is-hit {
+    animation: cpu-hit-shake 280ms ease-in-out;
+}
+
+#cpu-hit-mark {
+    position: absolute;
+    left: 66cqw;
+    top: 37cqh;
+    width: 10cqw;
+    height: 12cqh;
+    display: grid;
+    place-items: center;
+    z-index: 6;
+    pointer-events: none;
+    visibility: hidden;
+    color: #fff;
+    background: #e85b38;
+    font: 900 4.5cqh/1 Arial, sans-serif;
+    -webkit-text-stroke: 0.12cqh #66301f;
+    paint-order: stroke fill;
+    clip-path: polygon(50% 0%, 59% 18%, 78% 4%, 76% 27%, 98% 23%, 84% 43%, 100% 56%, 78% 63%, 88% 88%, 64% 78%, 50% 100%, 38% 79%, 11% 92%, 22% 66%, 0% 55%, 18% 43%, 2% 24%, 27% 28%, 24% 4%, 42% 19%);
+}
+
+#cpu-hit-mark.is-visible {
+    visibility: visible;
+    animation: cpu-hit-mark 280ms ease-out forwards;
+}
+
+@keyframes cpu-hit-shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-0.6cqw); }
+    40%, 80% { transform: translateX(0.6cqw); }
+}
+
+@keyframes cpu-hit-mark {
+    0% { transform: scale(0.6); opacity: 0; }
+    25% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0; }
+}
+
 #carrot {
     width: 10cqw;
     left: 56cqw;
@@ -173,6 +213,7 @@ body {
 }
 
 #stage-logo {
+    display: none;
     position: relative;
     width: 8.8cqw;
     height: 6.9cqh;
@@ -190,7 +231,7 @@ body {
 
 #battle-timer {
     position: relative;
-    margin-top: -2.5cqh;
+    margin-top: 2cqh;
     color: #fff;
     font: 900 8.9cqh/1 Arial, sans-serif;
     letter-spacing: -0.3cqw;

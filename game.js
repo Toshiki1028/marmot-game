@@ -1,6 +1,12 @@
 
 const gameScreen = document.getElementById("game-screen");
 const player = document.getElementById("player");
+const cpu = document.getElementById("cpu");
+const cpuNormalImage = cpu.getAttribute("src");
+const cpuHitMark = document.getElementById("cpu-hit-mark");
+const cpuStaminaFill = document.querySelector(".cpu-gauges .stamina .gauge-fill");
+const cpuStaminaTrack = cpuStaminaFill.parentElement;
+const cpuRoarFill = document.querySelector(".cpu-gauges .roar .gauge-fill");
 const carrot = document.getElementById("carrot");
 const carrotGauge = document.getElementById("carrot-gauge");
 const normalImage = player.getAttribute("src");
@@ -44,6 +50,9 @@ const eatingPercentPerSecond = 5;
 const maxStamina = 10;
 const punchStaminaCost = 1;
 const hitStaminaCost = 1;
+const dodgeRoarGain = 5;
+const punchInvulnerabilityDuration = 1500;
+const carrotRepickupDelay = 800;
 const naturalRecoveryInterval = 2000;
 const sleepRecoveryInterval = 1000;
 const sleepRecoveryAmount = 2;
@@ -53,10 +62,10 @@ let actionInProgress = false;
 let punchPhase = null;
 let punchTimer = null;
 let punchGeneration = 0;
+const pressedPunchButtons = new Set();
 let dodgePhase = null;
 let dodgeDirection = null;
 let dodgeStartedAt = 0;
-let dodgeSuccessRecorded = false;
 let dodgeTimer = null;
 let dodgeGeneration = 0;
 let standingUp = false;
@@ -75,6 +84,7 @@ let lastStaminaUpdate = performance.now();
 const carrotState = {
     holder: "ground", // ground / player / cpu
     eaten: { player: 0, cpu: 0 },
+    repickupBlockedUntil: { player: 0, cpu: 0 },
     get remaining() {
         return Math.max(0, 100 - this.eaten.player - this.eaten.cpu);
     },
@@ -88,6 +98,7 @@ let lastEatingUpdate = performance.now();
 const playerState = {
     mode: "normal",
     sleepHitCount: 0,
+    carrotHitCount: 0,
     punchInvulnerableUntil: 0,
     get hasCarrot() {
         return carrotState.holder === "player";
@@ -99,6 +110,49 @@ const playerState = {
         return this.mode === "sittingEating" && !standingUp ? 2 : 1;
     },
 };
+const cpuState = {
+    mode: "normal",
+    stamina: maxStamina,
+    roarGauge: 50,
+    punchHitCount: 0,
+    punchInvulnerableUntil: 0,
+    dodgeDirection: null,
+    dodgeStartedAt: 0,
+    dodgeGeneration: 0,
+    lastResolvedPunch: -1,
+};
+let cpuHitEffectTimer = null;
+
+function receiveCpuPunchHit(punchId, attackDirection) {
+    if (punchId !== punchGeneration || cpuState.lastResolvedPunch === punchId) return false;
+
+    cpuState.lastResolvedPunch = punchId;
+    if (performance.now() < cpuState.punchInvulnerableUntil) return false;
+    if (registerCpuDodge(attackDirection)) {
+        setCpuRoarGauge(cpuState.roarGauge + dodgeRoarGain);
+        return false;
+    }
+    if (cpuState.mode !== "normal" && cpuState.mode !== "dodging") return false;
+
+    cpuState.punchHitCount += 1;
+    cpuState.stamina = Math.max(0, cpuState.stamina - hitStaminaCost);
+    cpuStaminaFill.style.width = `${cpuState.stamina / maxStamina * 100}%`;
+    cpuStaminaTrack.setAttribute("aria-label", `スタミナ ${cpuState.stamina}/${maxStamina}`);
+
+    clearTimeout(cpuHitEffectTimer);
+    cpu.classList.remove("is-hit");
+    cpuHitMark.classList.remove("is-visible");
+    void cpu.offsetWidth;
+    cpu.classList.add("is-hit");
+    cpuHitMark.classList.add("is-visible");
+    cpuHitEffectTimer = setTimeout(() => {
+        cpu.classList.remove("is-hit");
+        cpuHitMark.classList.remove("is-visible");
+        cpuHitEffectTimer = null;
+    }, 280);
+    if (carrotState.holder === "cpu" && cpuState.punchHitCount >= 3) dropCarrot("cpu", "punch");
+    return true;
+}
 
 function updateCarrotGauge() {
     carrotGauge.style.setProperty("--carrot-player-share", `${carrotState.eaten.player}%`);
@@ -202,6 +256,12 @@ function setRoarGauge(value) {
 }
 
 setRoarGauge(roarGauge);
+function setCpuRoarGauge(value) {
+    cpuState.roarGauge = Math.max(0, Math.min(100, value));
+    cpuRoarFill.style.width = `${cpuState.roarGauge}%`;
+}
+
+setCpuRoarGauge(cpuState.roarGauge);
 // 開発確認用。ブラウザのコンソールから呼び出し、ゲーム操作には割り当てない。
 window.debugFillPlayerRoarGauge = () => setRoarGauge(100);
 
@@ -226,15 +286,38 @@ function showCurrentState() {
 function setCarrotHolder(holder) {
     if (!["ground", "player", "cpu"].includes(holder) || carrotState.holder === holder) return;
     if (holder === "player" && fatigued) return;
+    if (holder !== "ground" && (carrotState.holder !== "ground" ||
+        performance.now() < carrotState.repickupBlockedUntil[holder])) return;
+    if (holder === "cpu" && cpuState.mode !== "normal") return;
     updateEatingProgress();
     updateStaminaRecovery();
     clearPendingRoar();
     if (holder === "player" && punchPhase) cancelPunch();
+    const previousHolder = carrotState.holder;
     carrotState.holder = holder;
-    playerState.mode = holder === "player" ? "eating" : "normal";
-    playerState.sleepHitCount = 0;
+    if (holder === "player") {
+        playerState.mode = "eating";
+        playerState.carrotHitCount = 0;
+        playerState.sleepHitCount = 0;
+    } else if (previousHolder === "player") {
+        playerState.mode = "normal";
+        playerState.carrotHitCount = 0;
+    }
+    if (holder === "cpu" || previousHolder === "cpu") cpuState.punchHitCount = 0;
     updateCarrotDisplay();
-    if (!actionInProgress) showCurrentState();
+    if (!actionInProgress && (holder === "player" || previousHolder === "player")) showCurrentState();
+}
+
+function dropCarrot(holder, cause) {
+    if (carrotState.holder !== holder) return false;
+    setCarrotHolder("ground");
+    const now = performance.now();
+    carrotState.repickupBlockedUntil[holder] = now + carrotRepickupDelay;
+    if (cause === "punch") {
+        if (holder === "player") playerState.punchInvulnerableUntil = now + punchInvulnerabilityDuration;
+        else cpuState.punchInvulnerableUntil = now + punchInvulnerabilityDuration;
+    }
+    return true;
 }
 
 function setCarrotHeld(held) {
@@ -246,6 +329,19 @@ window.addEventListener("keydown", (event) => {
     if (event.code === "KeyC" && !event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey && carrotState.holder !== "cpu") {
         setCarrotHeld(!playerState.hasCarrot);
     }
+    // 開発用: Alt+Shift+1/2=CPU回避、3=CPU所持、4/5=CPUパンチ命中テスト。
+    if (event.repeat || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey ||
+        !["Digit1", "Digit2", "Digit3", "Digit4", "Digit5"].includes(event.code)) return;
+    event.preventDefault();
+    if (event.code === "Digit1") startCpuDodge("left");
+    if (event.code === "Digit2") startCpuDodge("right");
+    if (event.code === "Digit3" && (carrotState.holder === "ground" || carrotState.holder === "cpu")) {
+        setCarrotHolder(carrotState.holder === "cpu" ? "ground" : "cpu");
+    }
+    if (carrotState.holder !== "cpu" && cpuState.mode === "normal") {
+        if (event.code === "Digit4") receivePlayerPunchHit("left");
+        if (event.code === "Digit5") receivePlayerPunchHit("right");
+    }
 });
 
 function recordSleepHit() {
@@ -256,10 +352,15 @@ function recordSleepHit() {
 }
 
 // 将来のCPUパンチ命中時に呼ぶ。パンチ無敵中は被弾処理を行わない。
-function receivePlayerPunchHit() {
+function receivePlayerPunchHit(attackDirection) {
     if (performance.now() < playerState.punchInvulnerableUntil) return false;
+    if (registerSuccessfulDodge(attackDirection)) {
+        setRoarGauge(roarGauge + dodgeRoarGain);
+        return false;
+    }
     recordSleepHit();
     changeStamina(-hitStaminaCost);
+    if (playerState.hasCarrot && ++playerState.carrotHitCount >= 3) dropCarrot("player", "punch");
     return true;
 }
 
@@ -339,7 +440,6 @@ function startDodge(direction) {
     dodgePhase = "start";
     dodgeDirection = direction;
     dodgeStartedAt = performance.now();
-    dodgeSuccessRecorded = false;
     const generation = ++dodgeGeneration;
     const frames = dodgeFrames[direction];
     showDodgeFrame(frames.start);
@@ -375,13 +475,39 @@ function cancelDodge() {
     actionInProgress = false;
 }
 
-// 将来の攻撃命中判定から呼ぶ。今回は成功を記録するだけでゲージは変更しない。
+function startCpuDodge(direction) {
+    if (cpuState.mode !== "normal" || !dodgeFrames[direction]) return;
+
+    cpuState.mode = "dodging";
+    cpuState.dodgeDirection = direction;
+    cpuState.dodgeStartedAt = performance.now();
+    const generation = ++cpuState.dodgeGeneration;
+    setTimeout(() => {
+        if (generation !== cpuState.dodgeGeneration) return;
+        cpu.src = `assets/characters/cpu/dodge/回避_ノーマル_${direction === "left" ? "左" : "右"}.png`;
+        setTimeout(() => {
+            if (generation !== cpuState.dodgeGeneration) return;
+            cpu.src = cpuNormalImage;
+            setTimeout(() => {
+                if (generation !== cpuState.dodgeGeneration) return;
+                cpuState.mode = "normal";
+                cpuState.dodgeDirection = null;
+            }, dodgeDurations.recovery);
+        }, dodgeDurations.pose);
+    }, dodgeDurations.start);
+}
+
+function registerCpuDodge(attackDirection) {
+    return cpuState.mode === "dodging" &&
+        performance.now() - cpuState.dodgeStartedAt < dodgeDurations.start + dodgeDurations.pose &&
+        dodgeDirectionForAttack[attackDirection] === cpuState.dodgeDirection;
+}
+
 function registerSuccessfulDodge(attackDirection) {
     const withinWindow = performance.now() - dodgeStartedAt < dodgeDurations.start + dodgeDurations.pose;
     if (!withinWindow || (dodgePhase !== "start" && dodgePhase !== "pose") ||
-        dodgeSuccessRecorded || dodgeDirectionForAttack[attackDirection] !== dodgeDirection) return false;
+        dodgeDirectionForAttack[attackDirection] !== dodgeDirection) return false;
 
-    dodgeSuccessRecorded = true;
     return true;
 }
 
@@ -408,12 +534,14 @@ function startPunch(button) {
     changeStamina(-punchStaminaCost);
     const generation = ++punchGeneration;
     const frames = punchFrames[button];
+    const attackDirection = button === 0 ? "left" : "right";
     showPlayerImage(frames.windup);
 
     punchTimer = setTimeout(() => {
         if (generation !== punchGeneration) return;
         punchPhase = "contact";
         showPlayerImage(frames.contact);
+        receiveCpuPunchHit(generation, attackDirection);
         punchTimer = setTimeout(() => {
             if (generation !== punchGeneration) return;
             punchPhase = "recovery";
@@ -462,6 +590,8 @@ gameScreen.addEventListener("mousedown", (event) => {
     }
 
     if (!punchImages[event.button]) return;
+    if (pressedPunchButtons.has(event.button)) return;
+    pressedPunchButtons.add(event.button);
     if (roarInProgress) return;
     if (pendingRoar && pendingRoar.button !== event.button &&
         performance.now() - pendingRoar.startedAt <= punchDurations.windup) {
@@ -491,7 +621,12 @@ gameScreen.addEventListener("mousedown", (event) => {
     waitForEatingRoar(event.button);
 });
 
+window.addEventListener("mouseup", (event) => {
+    pressedPunchButtons.delete(event.button);
+});
+
 window.addEventListener("blur", () => {
+    pressedPunchButtons.clear();
     clearPendingRoar();
 });
 
