@@ -54,11 +54,42 @@ body {
     z-index: 2;
 }
 
-#cpu.is-hit {
+#cpu.is-hit,
+#player.is-hit {
     animation: cpu-hit-shake 280ms ease-in-out;
 }
 
-#cpu-hit-mark {
+#cpu.is-roar-hit,
+#player.is-roar-hit {
+    animation: cpu-hit-shake 100ms ease-in-out infinite;
+}
+
+#roar-warning[hidden] { display: none; }
+
+#roar-warning {
+    position: absolute;
+    top: 26cqh;
+    left: 52cqw;
+    z-index: 18;
+    transform: translateX(-50%);
+    color: #ffce38;
+    font: 900 5cqh/1 Arial, sans-serif;
+    -webkit-text-stroke: 0.25cqh #7d271b;
+    paint-order: stroke fill;
+    text-shadow: 0 0 2cqh #f63;
+    pointer-events: none;
+    animation: roar-warning-flash 150ms steps(2, start) infinite;
+}
+
+#roar-warning[data-target="player"] { left: 32cqw; }
+#roar-warning[data-target="cpu"] { left: 67cqw; }
+
+@keyframes roar-warning-flash {
+    50% { opacity: 0.25; }
+}
+
+#cpu-hit-mark,
+#player-hit-mark {
     position: absolute;
     left: 66cqw;
     top: 37cqh;
@@ -77,9 +108,14 @@ body {
     clip-path: polygon(50% 0%, 59% 18%, 78% 4%, 76% 27%, 98% 23%, 84% 43%, 100% 56%, 78% 63%, 88% 88%, 64% 78%, 50% 100%, 38% 79%, 11% 92%, 22% 66%, 0% 55%, 18% 43%, 2% 24%, 27% 28%, 24% 4%, 42% 19%);
 }
 
-#cpu-hit-mark.is-visible {
+#cpu-hit-mark.is-visible,
+#player-hit-mark.is-visible {
     visibility: visible;
     animation: cpu-hit-mark 280ms ease-out forwards;
+}
+
+#player-hit-mark {
+    left: 29cqw;
 }
 
 @keyframes cpu-hit-shake {
@@ -196,13 +232,6 @@ body {
     background: #f16b7a;
 }
 
-#finish-label {
-    left: var(--gauge-side-inset);
-    right: var(--gauge-side-inset);
-    padding-left: calc(var(--gauge-icon-size) + var(--gauge-icon-gap));
-    text-align: center;
-}
-
 #battle-center {
     position: absolute;
     top: 1.72cqh;
@@ -291,8 +320,78 @@ body {
 
 #finish-label {
     position: absolute;
-    top: 19.7cqh;
+    left: 50%;
+    top: 50%;
+    z-index: 30;
+    transform: translate(-50%, -50%);
     color: #fff;
-    font: 900 3cqh/1 Arial, sans-serif;
-    text-shadow: 0.2cqh 0.2cqh 0 #261a15;
+    font: 900 16cqh/1 Arial, sans-serif;
+    -webkit-text-stroke: 0.45cqh #493a2e;
+    paint-order: stroke fill;
+    text-shadow: 0.6cqh 0.8cqh 0 #493a2e, 0 0 2cqh #ffca72;
+    pointer-events: none;
+    animation: finish-pop 350ms ease-out both;
 }
+
+#result-label {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 30;
+    transform: translate(-50%, -50%);
+    color: #ffd36b;
+    font: 900 18cqh/1 Arial, sans-serif;
+    -webkit-text-stroke: 0.5cqh #493a2e;
+    paint-order: stroke fill;
+    text-shadow: 0.6cqh 0.8cqh 0 #493a2e, 0 0 2cqh #ffca72;
+    pointer-events: none;
+    animation: finish-pop 350ms ease-out both;
+}
+
+#result-label[data-result="lose"] { color: #a8d8ed; text-shadow: 0.6cqh 0.8cqh 0 #493a2e, 0 0 2cqh #6bb4dd; }
+#result-label[data-result="draw"] { color: #fff; }
+#finish-label[hidden], #result-label[hidden] { display: none; }
+
+@keyframes finish-pop {
+    from { transform: translate(-50%, -50%) scale(0.55); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+#struggle-ui[hidden] { display: none; }
+
+#game-screen.is-struggling #battle-ui { visibility: hidden; }
+
+#struggle-ui {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+    background: rgba(32, 21, 15, 0.38);
+    pointer-events: none;
+    font: 900 3.2cqh/1.2 Arial, sans-serif;
+    text-shadow: 0.2cqh 0.2cqh 0 #38251d;
+}
+
+.struggle-title { margin-top: 3cqh; font-size: 5cqh; }
+.struggle-mouse {
+    display: flex;
+    width: 10cqw;
+    height: 7cqh;
+    margin-top: 2cqh;
+    border: 0.4cqh solid #fff;
+    border-radius: 3cqh 3cqh 2cqh 2cqh;
+    overflow: hidden;
+    background: #493a2e;
+}
+.struggle-mouse span { flex: 1; display: grid; place-items: center; }
+.struggle-mouse span + span { border-left: 0.3cqh solid #fff; }
+.struggle-instruction { margin-top: 1cqh; }
+.struggle-time { margin-top: 1cqh; font-size: 9cqh; }
+.struggle-scores { display: flex; gap: 5cqw; margin-top: 1cqh; }
+.struggle-scores strong { font-size: 5cqh; }
+.struggle-feedback { margin-top: 2cqh; font-size: 7cqh; min-height: 8cqh; }
+.struggle-feedback.good { color: #ff9a3d; }
+.struggle-feedback.miss { color: #55bcff; }

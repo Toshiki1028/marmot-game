@@ -11,6 +11,8 @@
     <main id="game-screen" aria-label="ふれあいまーもっと 戦闘画面">
         <img id="cpu" src="assets/characters/cpu/ノーマル.png" alt="CPUのまーもっと">
         <div id="cpu-hit-mark" aria-hidden="true">HIT!</div>
+        <div id="player-hit-mark" aria-hidden="true">HIT!</div>
+        <div id="roar-warning" role="status" aria-live="assertive" hidden>WARNING!</div>
         <img id="carrot" src="assets/carrots/リアルにんじん.png" alt="にんじん">
         <img id="player" src="assets/characters/プレイヤー.png" alt="プレイヤーのまーもっと">
 
@@ -47,8 +49,17 @@
                     <div class="carrot-gauge-center"></div>
                 </div>
             </div>
-            <div id="finish-label">FINISH</div>
         </div>
+        <div id="struggle-ui" aria-live="polite" hidden>
+            <div class="struggle-title">にんじん争奪！</div>
+            <div class="struggle-mouse" aria-label="左クリックと右クリックを交互に押す"><span>左</span><span>右</span></div>
+            <div class="struggle-instruction">左右交互にクリック！</div>
+            <div id="struggle-time" class="struggle-time">3</div>
+            <div class="struggle-scores"><span>1P GOOD <strong id="struggle-player-score">0</strong></span><span>CPU GOOD <strong id="struggle-cpu-score">0</strong></span></div>
+            <div id="struggle-feedback" class="struggle-feedback" aria-live="assertive"></div>
+        </div>
+        <div id="finish-label" aria-live="assertive" hidden>FINISH</div>
+        <div id="result-label" aria-live="assertive" hidden></div>
     </main>
 </body>
 </html>
