@@ -16,9 +16,14 @@ const cpuRoarFill = document.querySelector(".cpu-gauges .roar .gauge-fill");
 let cpuImages = {};
 const stageLabel = document.getElementById("stage-label");
 const startLabel = document.getElementById("start-label");
+const startImage = document.getElementById("start-image");
 const titleScreen = document.getElementById("title-screen");
 const titleMessage = document.getElementById("title-message");
 const startButton = document.getElementById("start-button");
+const twoPlayerButton = document.getElementById("two-player-button");
+const twoPlayerHelp = document.getElementById("two-player-help");
+const twoPlayerStart = document.getElementById("two-player-start");
+const twoPlayerBack = document.getElementById("two-player-back");
 const recordsButton = document.getElementById("records-button");
 const scoreScreen = document.getElementById("score-screen");
 const scoreHeading = document.getElementById("score-heading");
@@ -39,6 +44,8 @@ const struggleTime = document.getElementById("struggle-time");
 const strugglePlayerScore = document.getElementById("struggle-player-score");
 const struggleCpuScore = document.getElementById("struggle-cpu-score");
 const struggleFeedback = document.getElementById("struggle-feedback");
+const struggleInstruction = document.getElementById("struggle-instruction");
+const struggleOpponentLabel = document.getElementById("struggle-opponent-label");
 const normalImage = player.getAttribute("src");
 const sittingImage = "assets/characters/player/sit/座り_プレイヤー.png";
 const punchImages = {
@@ -96,6 +103,8 @@ const roarDuration = 1000;
 const matchDuration = 100000;
 const finishDisplayDuration = 1200;
 const resultDisplayDuration = 2200;
+const stageIntroDuration = 1500;
+const fightIntroDuration = 800;
 const roarWarningDuration = 600;
 const roarTargetLockDuration = 4000;
 const roarCounterLockDuration = 2000;
@@ -134,6 +143,10 @@ const stages = [
     { name: "FINAL STAGE", rank: "B", character: "チャンピオン", background: "リング", label: "STAGE_3.png" },
 ];
 let stageIndex = 0;
+let gameMode = "cpu";
+const twoPlayerKeys = new Set();
+const twoPlayerRoarHoldDuration = 350;
+let twoPlayerRoarTimer = null;
 let cpuAi = cpuProfiles.C;
 const rankingKey = "marmot-cpu-records-v1";
 const runScore = { stages: [], eligible: true };
@@ -282,6 +295,7 @@ function showTitle(message) {
     scoreScreen.hidden = true;
     entryScreen.hidden = true;
     rankingScreen.hidden = true;
+    twoPlayerHelp.hidden = true;
     titleMessage.textContent = message;
     titleScreen.hidden = false;
     startButton.focus();
@@ -435,6 +449,7 @@ function tickMatchClock() {
 }
 
 function stopBattleActions() {
+    clearTwoPlayerInput();
     clearOpeningTimers();
     clearPendingRoar();
     clearTimeout(punchTimer);
@@ -503,9 +518,11 @@ function finishMatch(winner, reason) {
         matchState.remainingMs = Math.max(0, matchState.remainingMs - (performance.now() - matchState.lastTickAt));
         matchState.lastTickAt = performance.now();
     }
-    matchScore.result = calculateStageScore(winner, matchState.remainingMs, matchScore.hitsTaken, matchScore.punchesLanded);
-    runScore.stages[stageIndex] = matchScore.result;
-    if (winner !== "player") runScore.eligible = false;
+    if (gameMode === "cpu") {
+        matchScore.result = calculateStageScore(winner, matchState.remainingMs, matchScore.hitsTaken, matchScore.punchesLanded);
+        runScore.stages[stageIndex] = matchScore.result;
+        if (winner !== "player") runScore.eligible = false;
+    }
     matchState.finished = true;
     matchState.winner = winner;
     matchState.reason = reason;
@@ -522,13 +539,16 @@ function finishMatch(winner, reason) {
     matchState.finishTimer = setTimeout(() => {
         if (!matchState.finished || generation !== matchState.generation) return;
         finishLabel.hidden = true;
-        resultLabel.textContent = winner === "player" ? "WIN" : winner === "cpu" ? "LOSE" : "DRAW";
+        resultLabel.textContent = gameMode === "2p" ? (winner === "player" ? "1P WIN" : winner === "cpu" ? "2P WIN" : "DRAW") :
+            winner === "player" ? "WIN" : winner === "cpu" ? "LOSE" : "DRAW";
         resultLabel.dataset.result = winner === "player" ? "win" : winner === "cpu" ? "lose" : "draw";
         resultLabel.hidden = false;
         matchState.resultTimer = setTimeout(() => {
             if (generation !== matchState.generation) return;
             resultLabel.hidden = true;
-            if (winner === "player") {
+            if (gameMode === "2p") {
+                showTitle("2P対戦終了！");
+            } else if (winner === "player") {
                 showStageScore();
             } else if (winner === null) {
                 startStage(stageIndex);
@@ -611,12 +631,16 @@ function startStage(index) {
     showCurrentState();
     showCpuCurrentState();
     renderMatchClock();
-    startLabel.textContent = `${stages[index].name}  READY`;
+    startLabel.dataset.phase = "stage";
+    startImage.src = `assets/stage/${stages[index].label}`;
+    startImage.alt = stages[index].name;
     startLabel.hidden = false;
     const generation = matchState.generation;
     matchState.finishTimer = setTimeout(() => {
         if (generation !== matchState.generation) return;
-        startLabel.textContent = "FIGHT!";
+        startLabel.dataset.phase = "fight";
+        startImage.src = "assets/stage/FIGHT.png";
+        startImage.alt = "FIGHT!";
         matchState.finishTimer = setTimeout(() => {
             if (generation !== matchState.generation) return;
             startLabel.hidden = true;
@@ -630,8 +654,8 @@ function startStage(index) {
             cpuState.nextPickupAt = now + cpuRandomBetween(cpuAi.pickupDelayMin, cpuAi.pickupDelayMax);
             matchState.finished = false;
             startMatchClock();
-        }, 800);
-    }, 1200);
+        }, fightIntroDuration);
+    }, stageIntroDuration);
 }
 
 function restartStage1() { resetRunScore(); startStage(0); }
@@ -1197,13 +1221,15 @@ function startStruggle() {
     cpu.src = cpuImages.pickup;
     struggleFeedback.textContent = "";
     struggleFeedback.className = "struggle-feedback";
+    struggleInstruction.textContent = gameMode === "2p" ? "1P：左右クリック　2P：D / F を交互に！" : "左右交互にクリック！";
+    struggleOpponentLabel.textContent = gameMode === "2p" ? "2P" : "CPU";
     gameScreen.classList.add("is-struggling");
     struggleUi.hidden = false;
     updateStruggleDisplay();
     startStruggleMusic();
     struggleState.displayTimer = setInterval(updateStruggleDisplay, 50);
     struggleState.finishTimer = setTimeout(() => finishStruggle(generation), struggleDuration);
-    scheduleStruggleCpuInput(generation);
+    if (gameMode === "cpu") scheduleStruggleCpuInput(generation);
 }
 
 function finishStruggle(generation) {
@@ -1392,7 +1418,7 @@ function resolveCpuPunchHit(punchId, direction) {
 }
 
 function maybeCpuDodge(attackDirection, punchId) {
-    if (matchState.finished) return;
+    if (matchState.finished || gameMode !== "cpu") return;
     if (Math.random() >= cpuAi.dodgeChance) return;
     setTimeout(() => {
         if (punchId === punchGeneration && punchPhase === "windup")
@@ -1404,6 +1430,7 @@ function cpuBrainTick() {
     if (matchState.finished || struggleState.active) return;
     updateCpuStaminaRecovery();
     if (carrotState.holder === "ground") tryStartCpuPickup();
+    if (gameMode === "2p") return;
     if (!roarState.phase && !cpuState.roarStunned && !cpuState.counterStunned &&
         cpuState.roarGauge >= 100 && performance.now() >= cpuState.nextRoarDecisionAt) {
         cpuState.nextRoarDecisionAt = performance.now() +
@@ -1733,7 +1760,7 @@ function beginRoar(attacker) {
     roarWarning.dataset.target = attacker === "player" ? "cpu" : "player";
     roarWarning.hidden = false;
     roarState.warningTimer = setTimeout(() => resolveRoarWarning(generation), roarWarningDuration);
-    if (attacker === "player" && (cpuState.mode === "normal" || cpuState.mode === "eating") &&
+    if (gameMode === "cpu" && attacker === "player" && (cpuState.mode === "normal" || cpuState.mode === "eating") &&
         Math.random() < cpuAi.warningCancelChance) {
         roarState.cpuCancelTimer = setTimeout(() => {
             if (generation === roarState.generation) cancelRoarWarning("cpu");
@@ -1749,6 +1776,76 @@ function waitForEatingRoar(button) {
     pendingRoar = { button, startedAt: performance.now() };
     pendingRoarTimer = setTimeout(clearPendingRoar, punchDurations.windup);
 }
+
+function clearTwoPlayerInput() {
+    twoPlayerKeys.clear();
+    clearTimeout(twoPlayerRoarTimer);
+    twoPlayerRoarTimer = null;
+}
+
+function startTwoPlayerSit() {
+    if (cancelRoarWarning("cpu")) return;
+    if (cpuState.fatigued || cpuState.roarStunned || cpuState.counterStunned) return;
+    if (cpuState.mode === "sleeping" || cpuState.mode === "sittingEating") {
+        startCpuStandUp();
+    } else if ((cpuState.mode === "normal" || cpuState.mode === "eating") && cpuState.stamina > 0) {
+        updateEatingProgress();
+        if (matchState.finished) return;
+        updateCpuStaminaRecovery();
+        cpuState.mode = carrotState.holder === "cpu" ? "sittingEating" : "sleeping";
+        cpuState.sleepHitCount = 0;
+        showCpuCurrentState();
+    }
+}
+
+window.addEventListener("keydown", (event) => {
+    if (gameMode !== "2p" || matchState.finished || !["KeyD", "KeyF", "KeyJ", "KeyK", "Space"].includes(event.code)) return;
+    event.preventDefault();
+    if (event.repeat || twoPlayerKeys.has(event.code)) return;
+    twoPlayerKeys.add(event.code);
+    if (struggleState.active) {
+        if ((event.code === "KeyD" || event.code === "KeyF") && performance.now() < struggleState.endsAt) {
+            const button = event.code === "KeyF" ? 0 : 2;
+            if (struggleState.lastCpuButton === null || struggleState.lastCpuButton !== button) struggleState.cpuGood += 1;
+            struggleState.lastCpuButton = button;
+            startStruggleMusic();
+            updateStruggleDisplay();
+        }
+        return;
+    }
+    if (event.code === "Space") { startTwoPlayerSit(); return; }
+    if (event.code === "KeyJ" || event.code === "KeyK") {
+        if (cpuState.mode === "sleeping" || cpuState.mode === "sittingEating") startCpuStandUp();
+        else startCpuDodge(event.code === "KeyJ" ? "left" : "right");
+        return;
+    }
+    if (twoPlayerKeys.has("KeyD") && twoPlayerKeys.has("KeyF")) {
+        // 両押しになった時点で振り出し中のパンチを中断し、長押し判定へ移る。
+        if (cpuState.mode === "punching") {
+            cpuState.punchGeneration += 1;
+            cpuState.mode = cpuState.fatigued ? "fatigued" : "normal";
+            showCpuCurrentState();
+        }
+        const round = matchState.generation;
+        clearTimeout(twoPlayerRoarTimer);
+        twoPlayerRoarTimer = setTimeout(() => {
+            twoPlayerRoarTimer = null;
+            if (round === matchState.generation && twoPlayerKeys.has("KeyD") && twoPlayerKeys.has("KeyF")) beginRoar("cpu");
+        }, twoPlayerRoarHoldDuration);
+    } else if (cpuState.mode === "sleeping" || cpuState.mode === "sittingEating") {
+        startCpuStandUp();
+    } else {
+        startCpuPunch(event.code === "KeyF" ? "left" : "right");
+    }
+});
+
+window.addEventListener("keyup", (event) => {
+    twoPlayerKeys.delete(event.code);
+    if (event.code === "KeyD" || event.code === "KeyF") {
+        clearTimeout(twoPlayerRoarTimer);
+        twoPlayerRoarTimer = null;
+    }
+});
 
 gameScreen.addEventListener("mousedown", (event) => {
     if (matchState.finished) return;
@@ -1809,6 +1906,7 @@ window.addEventListener("blur", () => {
     struggleState.pressedButtons.clear();
     pressedPunchButtons.clear();
     clearPendingRoar();
+    clearTwoPlayerInput();
 });
 
 gameScreen.addEventListener("auxclick", (event) => {
@@ -1835,7 +1933,19 @@ gameScreen.addEventListener("contextmenu", (event) => {
 
 startButton.addEventListener("click", (event) => {
     event.stopPropagation();
+    gameMode = "cpu";
     restartStage1();
+});
+twoPlayerButton.addEventListener("click", () => {
+    titleScreen.hidden = true;
+    twoPlayerHelp.hidden = false;
+    twoPlayerStart.focus();
+});
+twoPlayerBack.addEventListener("click", () => showTitle("CPU戦 3ステージ連戦"));
+twoPlayerStart.addEventListener("click", () => {
+    gameMode = "2p";
+    twoPlayerHelp.hidden = true;
+    startStage(0);
 });
 scoreContinue.addEventListener("click", () => {
     scoreScreen.hidden = true;

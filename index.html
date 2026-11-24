@@ -54,20 +54,30 @@
         <div id="struggle-ui" aria-live="polite" hidden>
             <div class="struggle-title">にんじん争奪！</div>
             <div class="struggle-mouse" aria-label="左クリックと右クリックを交互に押す"><span>左</span><span>右</span></div>
-            <div class="struggle-instruction">左右交互にクリック！</div>
+            <div class="struggle-instruction" id="struggle-instruction">左右交互にクリック！</div>
             <div id="struggle-time" class="struggle-time">3</div>
-            <div class="struggle-scores"><span>1P GOOD <strong id="struggle-player-score">0</strong></span><span>CPU GOOD <strong id="struggle-cpu-score">0</strong></span></div>
+            <div class="struggle-scores"><span>1P GOOD <strong id="struggle-player-score">0</strong></span><span><span id="struggle-opponent-label">CPU</span> GOOD <strong id="struggle-cpu-score">0</strong></span></div>
             <div id="struggle-feedback" class="struggle-feedback" aria-live="assertive"></div>
         </div>
         <div id="finish-label" aria-live="assertive" hidden>FINISH</div>
         <div id="result-label" aria-live="assertive" hidden></div>
-        <div id="start-label" role="status" aria-live="assertive" hidden></div>
+        <div id="start-label" role="status" aria-live="assertive" hidden><img id="start-image" alt=""></div>
         <div id="title-screen" hidden>
             <h1>ふれあいまーもっと</h1>
             <p id="title-message">CPU戦 3ステージ連戦</p>
             <button id="start-button" type="button">はじめる</button>
+            <button id="two-player-button" type="button">2人で遊ぶ</button>
             <button id="records-button" type="button">レコード</button>
         </div>
+        <section id="two-player-help" class="record-screen" hidden aria-labelledby="two-player-heading">
+            <h2 id="two-player-heading">2人で遊ぶ</h2>
+            <p>1P：マウスでパンチ・回避・座り</p>
+            <p>2P：D / F パンチ　J / K 回避　Space 座り</p>
+            <p>2P：D＋Fを長押しで咆哮（ゲージ100%）</p>
+            <p>にんじん争奪中は1Pが左右クリック、2PがD / Fを交互に入力</p>
+            <button id="two-player-start" type="button">対戦開始</button>
+            <button id="two-player-back" type="button">タイトルへ</button>
+        </section>
         <section id="score-screen" class="record-screen" hidden aria-labelledby="score-heading">
             <h2 id="score-heading"></h2>
             <div id="score-details"></div>

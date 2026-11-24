@@ -392,11 +392,10 @@ body {
 #start-label[hidden], #title-screen[hidden] { display: none; }
 #start-label {
     position: absolute; left: 50%; top: 50%; z-index: 35;
-    transform: translate(-50%, -50%); color: #fff;
-    font: 900 14cqh/1 Arial, sans-serif; white-space: nowrap;
-    -webkit-text-stroke: 0.4cqh #493a2e; paint-order: stroke fill;
-    text-shadow: 0.5cqh 0.6cqh 0 #493a2e, 0 0 2cqh #ffca72;
+    transform: translate(-50%, -50%); pointer-events: none;
 }
+#start-image { display: block; width: 60cqw; height: auto; }
+#start-label[data-phase="fight"] #start-image { width: 60cqw; }
 #title-screen {
     position: absolute; inset: 0; z-index: 40; display: flex;
     flex-direction: column; align-items: center; justify-content: center;
@@ -405,7 +404,7 @@ body {
 }
 #title-screen h1 { margin: 0 0 2cqh; font-size: 8cqh; }
 #title-screen p { margin: 0 0 3cqh; }
-#start-button, #records-button, .record-screen button { padding: 1cqh 3cqw; margin: 0.6cqh; border: 0; border-radius: 3cqh; background: #ffca72; color: #493a2e; font: inherit; cursor: pointer; }
+#start-button, #two-player-button, #records-button, .record-screen button { padding: 1cqh 3cqw; margin: 0.6cqh; border: 0; border-radius: 3cqh; background: #ffca72; color: #493a2e; font: inherit; cursor: pointer; }
 .record-screen[hidden] { display: none; }
 .record-screen {
     position: absolute; inset: 0; z-index: 45; display: flex; flex-direction: column;
