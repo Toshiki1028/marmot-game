@@ -2,7 +2,7 @@
 const gameScreen = document.getElementById("game-screen");
 const player = document.getElementById("player");
 const cpu = document.getElementById("cpu");
-const cpuNormalImage = cpu.getAttribute("src");
+let cpuNormalImage = cpu.getAttribute("src");
 const cpuHitMark = document.getElementById("cpu-hit-mark");
 const playerHitMark = document.getElementById("player-hit-mark");
 const roarWarning = document.getElementById("roar-warning");
@@ -13,14 +13,25 @@ const resultLabel = document.getElementById("result-label");
 const cpuStaminaFill = document.querySelector(".cpu-gauges .stamina .gauge-fill");
 const cpuStaminaTrack = cpuStaminaFill.parentElement;
 const cpuRoarFill = document.querySelector(".cpu-gauges .roar .gauge-fill");
-const cpuImages = {
-    roar: "assets/characters/cpu/roar/咆哮_ノーマル.png",
-    punch: { left: "assets/characters/cpu/punch/パンチ_ノーマル_左.png", right: "assets/characters/cpu/punch/パンチ_ノーマル_右.png" },
-    dodge: { left: "assets/characters/cpu/dodge/回避_ノーマル_左.png", right: "assets/characters/cpu/dodge/回避_ノーマル_右.png" },
-    pickup: "assets/characters/cpu/pick up/拾い_ノーマル.png",
-    sit: "assets/characters/cpu/sit/座り_ノーマル.png",
-    sleep: "assets/characters/cpu/sleep/眠り_ノーマル.png",
-};
+let cpuImages = {};
+const stageLabel = document.getElementById("stage-label");
+const startLabel = document.getElementById("start-label");
+const titleScreen = document.getElementById("title-screen");
+const titleMessage = document.getElementById("title-message");
+const startButton = document.getElementById("start-button");
+const recordsButton = document.getElementById("records-button");
+const scoreScreen = document.getElementById("score-screen");
+const scoreHeading = document.getElementById("score-heading");
+const scoreDetails = document.getElementById("score-details");
+const scoreContinue = document.getElementById("score-continue");
+const entryScreen = document.getElementById("entry-screen");
+const totalScoreLabel = document.getElementById("total-score");
+const recordForm = document.getElementById("record-form");
+const recordName = document.getElementById("record-name");
+const recordError = document.getElementById("record-error");
+const rankingScreen = document.getElementById("ranking-screen");
+const rankingList = document.getElementById("ranking-list");
+const rankingBack = document.getElementById("ranking-back");
 const carrot = document.getElementById("carrot");
 const carrotGauge = document.getElementById("carrot-gauge");
 const struggleUi = document.getElementById("struggle-ui");
@@ -100,21 +111,40 @@ const sleepRecoveryInterval = 1000;
 const sleepRecoveryAmount = 2;
 const fatigueDuration = 4000;
 const fatigueRecoveryStamina = 3;
-// STAGE 1 (Cランク) の暫定AI値。競り合い実装時に取得開始の調停を置き換える。
-const cpuAi = {
+// A・Bの数値はゲームバランス調整前の暫定値。
+const cpuProfiles = {
+ C: {
     tick: 50, pickupDelayMin: 50, pickupDelayMax: 200,
     decisionMin: 750, decisionMax: 1300,
     dodgeChance: 0.3, dodgeReaction: 140,
     sitChance: 0.25, sitMin: 1600, sitMax: 2800,
     sleepThreshold: 4, wakeStamina: 8,
     roarChance: 0.25, warningCancelChance: 0.2, warningReaction: 420,
+ },
+ A: { tick: 50, pickupDelayMin: 30, pickupDelayMax: 120, decisionMin: 500, decisionMax: 850,
+    dodgeChance: 0.55, dodgeReaction: 105, sitChance: 0.3, sitMin: 1400, sitMax: 2400,
+    sleepThreshold: 3, wakeStamina: 8, roarChance: 0.5, warningCancelChance: 0.45, warningReaction: 300 },
+ B: { tick: 50, pickupDelayMin: 10, pickupDelayMax: 80, decisionMin: 300, decisionMax: 550,
+    dodgeChance: 0.75, dodgeReaction: 65, sitChance: 0.35, sitMin: 1200, sitMax: 2200,
+    sleepThreshold: 3, wakeStamina: 8, roarChance: 0.75, warningCancelChance: 0.7, warningReaction: 190 },
 };
+const stages = [
+    { name: "STAGE 1", rank: "C", character: "ノーマル", background: "リビング", label: "STAGE_1.png" },
+    { name: "STAGE 2", rank: "A", character: "軍曹", background: "草原", label: "STAGE_2.png" },
+    { name: "FINAL STAGE", rank: "B", character: "チャンピオン", background: "リング", label: "STAGE_3.png" },
+];
+let stageIndex = 0;
+let cpuAi = cpuProfiles.C;
+const rankingKey = "marmot-cpu-records-v1";
+const runScore = { stages: [], eligible: true };
+let matchScore = { hitsTaken: 0, punchesLanded: 0, result: null };
 const struggleDuration = 3000;
 const struggleCpuProfiles = {
     C: { tapMin: 400, tapMax: 600, missChance: 0.3 },
-    // B・Aランクはそれぞれの数値が決まった時点で追加する。
+    A: { tapMin: 300, tapMax: 450, missChance: 0.18 },
+    B: { tapMin: 220, tapMax: 350, missChance: 0.08 },
 };
-const struggleCpuProfile = struggleCpuProfiles.C;
+let struggleCpuProfile = struggleCpuProfiles.C;
 let actionInProgress = false;
 let punchPhase = null;
 let punchTimer = null;
@@ -225,6 +255,105 @@ const openingState = {
     adjudicationTimer: null,
     feedbackTimer: null,
 };
+
+function configureStage(index) {
+    stageIndex = index;
+    const stage = stages[index];
+    const name = stage.character;
+    cpuAi = cpuProfiles[stage.rank];
+    struggleCpuProfile = struggleCpuProfiles[stage.rank];
+    cpuNormalImage = `assets/characters/cpu/${name}.png`;
+    cpuImages = {
+        roar: `assets/characters/cpu/roar/咆哮_${name}.png`,
+        punch: { left: `assets/characters/cpu/punch/パンチ_${name}_左.png`, right: `assets/characters/cpu/punch/パンチ_${name}_右.png` },
+        dodge: { left: `assets/characters/cpu/dodge/回避_${name}_左.png`, right: `assets/characters/cpu/dodge/回避_${name}_右.png` },
+        pickup: `assets/characters/cpu/pick up/拾い_${name}.png`,
+        sit: `assets/characters/cpu/sit/座り_${name}.png`,
+        sleep: `assets/characters/cpu/sleep/眠り_${name}.png`,
+    };
+    gameScreen.style.backgroundImage = `url("assets/backgrounds/背景_${stage.background}.png")`;
+    stageLabel.src = `assets/stage/${stage.label}`;
+    stageLabel.alt = stage.name;
+}
+
+function showTitle(message) {
+    startLabel.hidden = true;
+    resultLabel.hidden = true;
+    scoreScreen.hidden = true;
+    entryScreen.hidden = true;
+    rankingScreen.hidden = true;
+    titleMessage.textContent = message;
+    titleScreen.hidden = false;
+    startButton.focus();
+}
+
+function resetRunScore() {
+    runScore.stages = [];
+    runScore.eligible = true;
+}
+
+function calculateStageScore(winner, remainingMs, hitsTaken, punchesLanded) {
+    const remainingSeconds = Math.floor(Math.max(0, Math.min(matchDuration, remainingMs)) / 1000);
+    const victory = winner === "player" ? 4000 : 0;
+    const time = remainingSeconds * 30;
+    const defense = Math.max(0, 2000 - hitsTaken * 200);
+    const attack = Math.min(1000, punchesLanded * 100);
+    return { victory, time, defense, attack, remainingSeconds, hitsTaken, punchesLanded,
+        elapsedMs: matchDuration - Math.max(0, Math.min(matchDuration, remainingMs)),
+        total: Math.min(10000, victory + time + defense + attack) };
+}
+
+function showStageScore() {
+    const score = matchScore.result;
+    scoreHeading.textContent = `${stages[stageIndex].name}  SCORE  ${score.total.toLocaleString()}`;
+    scoreDetails.textContent = "";
+    for (const line of [
+        `勝利ボーナス　${score.victory.toLocaleString()}点`,
+        `タイムボーナス（残り${score.remainingSeconds}秒）　${score.time.toLocaleString()}点`,
+        `被弾ボーナス（${score.hitsTaken}回）　${score.defense.toLocaleString()}点`,
+        `攻撃命中ボーナス（${score.punchesLanded}回）　${score.attack.toLocaleString()}点`,
+    ]) {
+        const row = document.createElement("p");
+        row.textContent = line;
+        scoreDetails.appendChild(row);
+    }
+    scoreScreen.hidden = false;
+    scoreContinue.focus();
+}
+
+function loadRecords() {
+    try {
+        const records = JSON.parse(localStorage.getItem(rankingKey) || "[]");
+        return Array.isArray(records) ? records.filter(record => record && typeof record.name === "string" &&
+            Number.isFinite(record.total) && Number.isFinite(record.elapsedMs) &&
+            typeof record.registeredAt === "string" && Array.isArray(record.stages)) : [];
+    } catch (_) { return []; }
+}
+
+function sortRecords(records) {
+    return records.sort((a, b) => b.total - a.total || a.elapsedMs - b.elapsedMs ||
+        a.registeredAt.localeCompare(b.registeredAt)).slice(0, 10);
+}
+
+function showRanking() {
+    titleScreen.hidden = true;
+    entryScreen.hidden = true;
+    rankingList.textContent = "";
+    const records = sortRecords(loadRecords());
+    if (!records.length) rankingList.textContent = "まだレコードがありません";
+    records.forEach((record, index) => {
+        const row = document.createElement("div");
+        row.className = "ranking-row";
+        for (const value of [`${index + 1}位`, record.name, `${record.total.toLocaleString()}点`, `${(record.elapsedMs / 1000).toFixed(1)}秒`]) {
+            const cell = document.createElement("span");
+            cell.textContent = value;
+            row.appendChild(cell);
+        }
+        rankingList.appendChild(row);
+    });
+    rankingScreen.hidden = false;
+    rankingBack.focus();
+}
 
 function clearOpeningTimers() {
     clearTimeout(openingState.adjudicationTimer);
@@ -370,6 +499,13 @@ function stopBattleActions() {
 
 function finishMatch(winner, reason) {
     if (matchState.finished) return false;
+    if (matchState.clockTimer && !struggleState.active) {
+        matchState.remainingMs = Math.max(0, matchState.remainingMs - (performance.now() - matchState.lastTickAt));
+        matchState.lastTickAt = performance.now();
+    }
+    matchScore.result = calculateStageScore(winner, matchState.remainingMs, matchScore.hitsTaken, matchScore.punchesLanded);
+    runScore.stages[stageIndex] = matchScore.result;
+    if (winner !== "player") runScore.eligible = false;
     matchState.finished = true;
     matchState.winner = winner;
     matchState.reason = reason;
@@ -390,13 +526,21 @@ function finishMatch(winner, reason) {
         resultLabel.dataset.result = winner === "player" ? "win" : winner === "cpu" ? "lose" : "draw";
         resultLabel.hidden = false;
         matchState.resultTimer = setTimeout(() => {
-            if (generation === matchState.generation) resultLabel.hidden = true;
+            if (generation !== matchState.generation) return;
+            resultLabel.hidden = true;
+            if (winner === "player") {
+                showStageScore();
+            } else if (winner === null) {
+                startStage(stageIndex);
+            } else {
+                showTitle("連戦終了　また挑戦してね！");
+            }
         }, resultDisplayDuration);
     }, finishDisplayDuration);
     return true;
 }
 
-function restartStage1() {
+function startStage(index) {
     stopMatchClock();
     stopBattleActions();
     clearTimeout(matchState.finishTimer);
@@ -405,6 +549,10 @@ function restartStage1() {
     matchState.resultTimer = null;
     matchState.generation += 1;
     matchState.finished = true;
+    configureStage(index);
+    matchScore = { hitsTaken: 0, punchesLanded: 0, result: null };
+    scoreScreen.hidden = true;
+    titleScreen.hidden = true;
     matchState.winner = null;
     matchState.reason = null;
     matchState.remainingMs = matchDuration;
@@ -463,10 +611,30 @@ function restartStage1() {
     showCurrentState();
     showCpuCurrentState();
     renderMatchClock();
-    matchState.finished = false;
-    startMatchClock();
+    startLabel.textContent = `${stages[index].name}  READY`;
+    startLabel.hidden = false;
+    const generation = matchState.generation;
+    matchState.finishTimer = setTimeout(() => {
+        if (generation !== matchState.generation) return;
+        startLabel.textContent = "FIGHT!";
+        matchState.finishTimer = setTimeout(() => {
+            if (generation !== matchState.generation) return;
+            startLabel.hidden = true;
+            matchState.finishTimer = null;
+            const now = performance.now();
+            lastEatingUpdate = now;
+            lastStaminaUpdate = now;
+            cpuState.lastStaminaUpdate = now;
+            cpuState.nextDecisionAt = now + 500;
+            cpuState.nextRoarDecisionAt = now + 500;
+            cpuState.nextPickupAt = now + cpuRandomBetween(cpuAi.pickupDelayMin, cpuAi.pickupDelayMax);
+            matchState.finished = false;
+            startMatchClock();
+        }, 800);
+    }, 1200);
 }
 
+function restartStage1() { resetRunScore(); startStage(0); }
 window.debugRestartStage1 = restartStage1;
 
 function receiveCpuPunchHit(punchId, attackDirection) {
@@ -479,8 +647,10 @@ function receiveCpuPunchHit(punchId, attackDirection) {
         setCpuRoarGauge(cpuState.roarGauge + dodgeRoarGain);
         return false;
     }
+    matchScore.punchesLanded += 1;
     if (cpuState.mode === "picking") cancelCpuPickup();
     if (cpuState.mode === "sleeping" && ++cpuState.sleepHitCount >= 3) startCpuStandUp();
+    const carrotDropHits = cpuState.mode === "sittingEating" ? 2 : 3;
     cpuState.punchHitCount += 1;
     changeCpuStamina(-hitStaminaCost);
 
@@ -495,7 +665,7 @@ function receiveCpuPunchHit(punchId, attackDirection) {
         cpuHitMark.classList.remove("is-visible");
         cpuHitEffectTimer = null;
     }, 280);
-    if (carrotState.holder === "cpu" && cpuState.punchHitCount >= 3) dropCarrot("cpu", "punch");
+    if (carrotState.holder === "cpu" && cpuState.punchHitCount >= carrotDropHits) dropCarrot("cpu", "punch");
     recordOpeningHit("player");
     return true;
 }
@@ -737,10 +907,12 @@ function receivePlayerPunchHit(attackDirection) {
         setRoarGauge(roarGauge + dodgeRoarGain);
         return false;
     }
+    matchScore.hitsTaken += 1;
     if (pickupInProgress) cancelPickup();
     recordSleepHit();
+    const carrotDropHits = playerState.mode === "sittingEating" && !standingUp ? 2 : 3;
     changeStamina(-hitStaminaCost);
-    if (playerState.hasCarrot && ++playerState.carrotHitCount >= 3) dropCarrot("player", "punch");
+    if (playerState.hasCarrot && ++playerState.carrotHitCount >= carrotDropHits) dropCarrot("player", "punch");
     clearTimeout(playerHitEffectTimer);
     player.classList.remove("is-hit");
     carrot.classList.remove("is-hit");
@@ -1446,6 +1618,7 @@ function cancelRoarWarning(target) {
 
 function applyRoarToTarget(target) {
     if (target === "player") {
+        matchScore.hitsTaken += 1;
         if (punchPhase) cancelPunch();
         if (dodgePhase) cancelDodge();
         if (pickupInProgress) cancelPickup();
@@ -1660,5 +1833,48 @@ gameScreen.addEventListener("contextmenu", (event) => {
     event.preventDefault();
 });
 
-renderMatchClock();
-startMatchClock();
+startButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    restartStage1();
+});
+scoreContinue.addEventListener("click", () => {
+    scoreScreen.hidden = true;
+    if (stageIndex < stages.length - 1) {
+        startStage(stageIndex + 1);
+    } else if (runScore.eligible && runScore.stages.length === stages.length && runScore.stages.every(Boolean)) {
+        const total = runScore.stages.reduce((sum, score) => sum + score.total, 0);
+        totalScoreLabel.textContent = `総合スコア　${total.toLocaleString()}点`;
+        recordName.value = "";
+        recordError.textContent = "";
+        entryScreen.hidden = false;
+        recordName.focus();
+    } else {
+        showTitle("クリア！ 引き分けがあったためレコード登録はできません。");
+    }
+});
+recordsButton.addEventListener("click", showRanking);
+rankingBack.addEventListener("click", () => showTitle("CPU戦 3ステージ連戦"));
+recordForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (entryScreen.hidden || !runScore.eligible || runScore.stages.length !== stages.length || !runScore.stages.every(Boolean)) return;
+    const record = {
+        name: Array.from(recordName.value.trim()).slice(0, 12).join("") || "PLAYER",
+        total: runScore.stages.reduce((sum, score) => sum + score.total, 0),
+        stages: runScore.stages.map(score => score.total),
+        elapsedMs: runScore.stages.reduce((sum, score) => sum + score.elapsedMs, 0),
+        registeredAt: new Date().toISOString(),
+    };
+    try {
+        localStorage.setItem(rankingKey, JSON.stringify(sortRecords([...loadRecords(), record])));
+    } catch (_) {
+        recordError.textContent = "保存できませんでした。ブラウザの保存設定を確認してください。";
+        return;
+    }
+    runScore.eligible = false;
+    showRanking();
+});
+configureStage(0);
+matchState.finished = true;
+showCurrentState();
+showCpuCurrentState();
+showTitle("CPU戦 3ステージ連戦");

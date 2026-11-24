@@ -279,7 +279,7 @@ body {
 }
 
 #stage-logo {
-    display: none;
+    display: block;
     position: relative;
     width: 8.8cqw;
     height: 6.9cqh;
@@ -388,6 +388,41 @@ body {
 #result-label[data-result="lose"] { color: #a8d8ed; text-shadow: 0.6cqh 0.8cqh 0 #493a2e, 0 0 2cqh #6bb4dd; }
 #result-label[data-result="draw"] { color: #fff; }
 #finish-label[hidden], #result-label[hidden] { display: none; }
+
+#start-label[hidden], #title-screen[hidden] { display: none; }
+#start-label {
+    position: absolute; left: 50%; top: 50%; z-index: 35;
+    transform: translate(-50%, -50%); color: #fff;
+    font: 900 14cqh/1 Arial, sans-serif; white-space: nowrap;
+    -webkit-text-stroke: 0.4cqh #493a2e; paint-order: stroke fill;
+    text-shadow: 0.5cqh 0.6cqh 0 #493a2e, 0 0 2cqh #ffca72;
+}
+#title-screen {
+    position: absolute; inset: 0; z-index: 40; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(41, 29, 23, 0.84); color: #fff5d8;
+    font: 700 3.5cqh/1.4 sans-serif; text-align: center;
+}
+#title-screen h1 { margin: 0 0 2cqh; font-size: 8cqh; }
+#title-screen p { margin: 0 0 3cqh; }
+#start-button, #records-button, .record-screen button { padding: 1cqh 3cqw; margin: 0.6cqh; border: 0; border-radius: 3cqh; background: #ffca72; color: #493a2e; font: inherit; cursor: pointer; }
+.record-screen[hidden] { display: none; }
+.record-screen {
+    position: absolute; inset: 0; z-index: 45; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; overflow-y: auto;
+    padding: 2cqh 5cqw; background: rgba(41, 29, 23, 0.94); color: #fff5d8;
+    font: 700 3cqh/1.3 sans-serif; text-align: center;
+}
+.record-screen h2 { margin: 0 0 1cqh; font-size: 5cqh; color: #ffca72; }
+.record-screen p { margin: 0.5cqh 0; }
+#score-details { line-height: 1.4; }
+#record-form { display: flex; flex-direction: column; align-items: center; gap: 1cqh; }
+#record-name { width: 25cqw; padding: 1cqh; border: 0; border-radius: 1cqh; font: inherit; text-align: center; }
+#record-error { color: #ffaf9f; font-size: 2.4cqh; }
+#ranking-list { width: min(70cqw, 900px); font-size: 2.5cqh; }
+.ranking-row { display: grid; grid-template-columns: 5cqw 1fr 12cqw 11cqw; gap: 1cqw; padding: 0.35cqh; border-bottom: 1px solid #997756; text-align: left; }
+.ranking-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking-row span:nth-child(n+3) { text-align: right; }
 
 @keyframes finish-pop {
     from { transform: translate(-50%, -50%) scale(0.55); opacity: 0; }
