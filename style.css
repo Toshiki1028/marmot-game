@@ -25,10 +25,10 @@ body {
     --cpu-left: 39.5cqw;
     --cpu-top: 20.3cqh;
     /* 所持中のにんじん位置。立ち姿と座り姿で調整する。 */
-    --carrot-standing-left: 41cqw;
-    --carrot-standing-top: 36cqh;
-    --carrot-sitting-left: 39cqw;
-    --carrot-sitting-top: 37cqh;
+    --carrot-standing-left: 46cqw;
+    --carrot-standing-top: 34cqh;
+    --carrot-sitting-left: 44cqw;
+    --carrot-sitting-top: 38cqh;
     position: relative;
     width: min(100vw, 177.7778vh);
     aspect-ratio: 16 / 9;
@@ -55,7 +55,8 @@ body {
 }
 
 #cpu.is-hit,
-#player.is-hit {
+#player.is-hit,
+#carrot[data-holder="player"].is-hit {
     animation: cpu-hit-shake 280ms ease-in-out;
 }
 
@@ -83,6 +84,22 @@ body {
 
 #roar-warning[data-target="player"] { left: 32cqw; }
 #roar-warning[data-target="cpu"] { left: 67cqw; }
+
+#first-hit-label[hidden] { display: none; }
+
+#first-hit-label {
+    position: absolute;
+    left: 50cqw;
+    top: 25cqh;
+    z-index: 18;
+    transform: translateX(-50%);
+    color: #ffce38;
+    font: 900 5cqh/1 Arial, sans-serif;
+    -webkit-text-stroke: 0.25cqh #7d271b;
+    paint-order: stroke fill;
+    text-shadow: 0 0 2cqh #f63;
+    pointer-events: none;
+}
 
 @keyframes roar-warning-flash {
     50% { opacity: 0.25; }
@@ -119,9 +136,9 @@ body {
 }
 
 @keyframes cpu-hit-shake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-0.6cqw); }
-    40%, 80% { transform: translateX(0.6cqw); }
+    0%, 100% { transform: translateX(0) var(--hit-base-transform, translateX(0)); }
+    20%, 60% { transform: translateX(-0.6cqw) var(--hit-base-transform, translateX(0)); }
+    40%, 80% { transform: translateX(0.6cqw) var(--hit-base-transform, translateX(0)); }
 }
 
 @keyframes cpu-hit-mark {
@@ -139,11 +156,17 @@ body {
 }
 
 #carrot[data-holder="player"] {
+    --hit-base-transform: rotate(0deg) scaleY(1.5);
     width: 6cqw;
     left: var(--carrot-standing-left);
     top: var(--carrot-standing-top);
-    transform: rotate(18deg);
-    z-index: 5;
+    transform: rotate(0deg) scaleY(1.5);
+    transform-origin: center top;
+    z-index: 3;
+}
+
+#carrot[data-holder="player"].is-player-action-hidden {
+    visibility: hidden;
 }
 
 #carrot[data-holder="player"][data-pose="sitting"] {
@@ -152,9 +175,16 @@ body {
 }
 
 #carrot[data-holder="cpu"] {
-    left: 58cqw;
-    top: 46cqh;
+    width: 6cqw;
+    left: 54.5cqw;
+    top: 32cqh;
+    transform: rotate(0deg);
     z-index: 5;
+}
+
+#carrot[data-holder="cpu"][data-pose="sitting"] {
+    left: 54.5cqw;
+    top: 39cqh;
 }
 
 #player {
@@ -162,6 +192,13 @@ body {
     left: var(--player-left);
     top: var(--player-top);
     z-index: 4;
+}
+
+#player.is-full-frame {
+    width: 100cqw;
+    height: 100cqh;
+    left: 0;
+    top: 0;
 }
 
 #battle-ui {

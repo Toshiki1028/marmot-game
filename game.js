@@ -6,6 +6,7 @@ const cpuNormalImage = cpu.getAttribute("src");
 const cpuHitMark = document.getElementById("cpu-hit-mark");
 const playerHitMark = document.getElementById("player-hit-mark");
 const roarWarning = document.getElementById("roar-warning");
+const firstHitLabel = document.getElementById("first-hit-label");
 const battleTimer = document.getElementById("battle-timer");
 const finishLabel = document.getElementById("finish-label");
 const resultLabel = document.getElementById("result-label");
@@ -33,10 +34,23 @@ const punchImages = {
     0: "assets/characters/player/punch/パンチ_プレイヤー_左.png",
     2: "assets/characters/player/punch/パンチ_プレイヤー_右.png",
 };
-const punchFrames = {
-    0: { windup: normalImage, contact: punchImages[0], recovery: normalImage },
-    2: { windup: normalImage, contact: punchImages[2], recovery: normalImage },
-};
+const leftPunchFrames = [
+    { image: normalImage, duration: 60 },
+    { image: "assets/characters/player/punch/パンチ_プレイヤー_左_残像_前1.png", duration: 60, fullFrame: true },
+    { image: "assets/characters/player/punch/パンチ_プレイヤー_左_残像_前2.png", duration: 60, fullFrame: true },
+    { image: punchImages[0], duration: 100 },
+    { image: "assets/characters/player/プレイヤー_左右_残像_後1.png", duration: 85, fullFrame: true },
+    { image: "assets/characters/player/プレイヤー_左右_残像_後2.png", duration: 85, fullFrame: true },
+];
+// 右パンチは既存の 180ms / 100ms / 170ms を保ったまま残像を挟む。
+const rightPunchFrames = [
+    { image: normalImage, duration: 60 },
+    { image: "assets/characters/player/punch/パンチ_プレイヤー_右_残像_前1.png", duration: 60, fullFrame: true },
+    { image: "assets/characters/player/punch/パンチ_プレイヤー_右_残像_前2.png", duration: 60, fullFrame: true },
+    { image: punchImages[2], duration: 100 },
+    { image: "assets/characters/player/プレイヤー_左右_残像_後1.png", duration: 85, fullFrame: true },
+    { image: "assets/characters/player/プレイヤー_左右_残像_後2.png", duration: 85, fullFrame: true },
+];
 const dodgeImages = {
     left: "assets/characters/player/dodge/回避_プレイヤー_左.png",
     right: "assets/characters/player/dodge/回避_プレイヤー_右.png",
@@ -62,6 +76,8 @@ const punchDurations = { windup: 180, contact: 100, recovery: 170 };
 const dodgeDurations = { start: 80, pose: 140, recovery: 180 };
 const standUpDuration = 250;
 const pickupDuration = 450;
+const firstHitDisplayDuration = 800;
+const openingHitWindow = 16;
 const standUpFrame = { image: normalImage, compactPose: false };
 // 攻撃方向と必要な回避方向の対応。CPUの攻撃判定を実装するときに利用する。
 const dodgeDirectionForAttack = { left: "left", right: "right" };
@@ -202,6 +218,60 @@ const matchState = {
     finished: false, winner: null, reason: null, generation: 0,
     finishTimer: null, resultTimer: null,
 };
+const openingState = {
+    active: true,
+    claimant: null,
+    pendingHits: new Set(),
+    adjudicationTimer: null,
+    feedbackTimer: null,
+};
+
+function clearOpeningTimers() {
+    clearTimeout(openingState.adjudicationTimer);
+    openingState.adjudicationTimer = null;
+    openingState.pendingHits.clear();
+    clearTimeout(openingState.feedbackTimer);
+    openingState.feedbackTimer = null;
+    firstHitLabel.hidden = true;
+}
+
+function releaseOpeningClaim(owner) {
+    if (openingState.active && openingState.claimant === owner) openingState.claimant = null;
+}
+
+function finishOpening() {
+    openingState.active = false;
+    openingState.claimant = null;
+    clearTimeout(openingState.adjudicationTimer);
+    openingState.adjudicationTimer = null;
+    openingState.pendingHits.clear();
+}
+
+function recordOpeningHit(attacker) {
+    if (matchState.finished || !openingState.active || openingState.claimant || carrotState.holder !== "ground") return;
+    openingState.pendingHits.add(attacker);
+    if (openingState.adjudicationTimer !== null) return;
+    const round = matchState.generation;
+    openingState.adjudicationTimer = setTimeout(() => {
+        openingState.adjudicationTimer = null;
+        if (matchState.finished || round !== matchState.generation || !openingState.active ||
+            openingState.claimant || carrotState.holder !== "ground") {
+            openingState.pendingHits.clear();
+            return;
+        }
+        const winner = openingState.pendingHits.size === 1 ? [...openingState.pendingHits][0] : null;
+        openingState.pendingHits.clear();
+        if (!winner) return; // 同じ判定窓で双方が命中した場合は次のHITを待つ。
+        openingState.claimant = winner;
+        firstHitLabel.hidden = false;
+        clearTimeout(openingState.feedbackTimer);
+        openingState.feedbackTimer = setTimeout(() => {
+            if (round !== matchState.generation) return;
+            firstHitLabel.hidden = true;
+            openingState.feedbackTimer = null;
+        }, firstHitDisplayDuration);
+    }, openingHitWindow);
+}
 
 function renderMatchClock() {
     const seconds = Math.ceil(matchState.remainingMs / 1000);
@@ -236,6 +306,7 @@ function tickMatchClock() {
 }
 
 function stopBattleActions() {
+    clearOpeningTimers();
     clearPendingRoar();
     clearTimeout(punchTimer);
     punchTimer = null;
@@ -292,6 +363,7 @@ function stopBattleActions() {
     playerHitEffectTimer = null;
     cpu.classList.remove("is-hit", "is-roar-hit");
     player.classList.remove("is-hit", "is-roar-hit");
+    carrot.classList.remove("is-hit");
     cpuHitMark.classList.remove("is-visible");
     playerHitMark.classList.remove("is-visible");
 }
@@ -345,6 +417,8 @@ function restartStage1() {
     carrotState.eaten.cpu = 0;
     carrotState.repickupBlockedUntil.player = 0;
     carrotState.repickupBlockedUntil.cpu = 0;
+    openingState.active = true;
+    openingState.claimant = null;
     playerState.mode = "normal";
     playerState.sleepHitCount = 0;
     playerState.carrotHitCount = 0;
@@ -422,6 +496,7 @@ function receiveCpuPunchHit(punchId, attackDirection) {
         cpuHitEffectTimer = null;
     }, 280);
     if (carrotState.holder === "cpu" && cpuState.punchHitCount >= 3) dropCarrot("cpu", "punch");
+    recordOpeningHit("player");
     return true;
 }
 
@@ -458,7 +533,13 @@ function updateEatingProgress() {
 
 function updateCarrotDisplay() {
     carrot.dataset.holder = carrotState.holder;
-    carrot.dataset.pose = playerState.mode === "sittingEating" && !standingUp ? "sitting" : "standing";
+    if (carrotState.holder !== "player") carrot.classList.remove("is-hit");
+    carrot.classList.toggle("is-player-action-hidden", carrotState.holder === "player" &&
+        (punchPhase !== null || dodgePhase !== null));
+    const isSitting = carrotState.holder === "player"
+        ? playerState.mode === "sittingEating" && !standingUp
+        : carrotState.holder === "cpu" && cpuState.mode === "sittingEating";
+    carrot.dataset.pose = isSitting ? "sitting" : "standing";
 }
 
 updateCarrotGauge();
@@ -552,7 +633,8 @@ setInterval(() => {
     }
 }, 100);
 
-function showPlayerImage(image, compactPose = false) {
+function showPlayerImage(image, compactPose = false, fullFrame = false) {
+    player.classList.toggle("is-full-frame", fullFrame);
     player.style.width = compactPose ? "42cqw" : "";
     player.style.left = compactPose ? "16cqw" : "";
     player.src = image;
@@ -581,6 +663,7 @@ function setCarrotHolder(holder) {
     if (holder === "player" && punchPhase) cancelPunch();
     const previousHolder = carrotState.holder;
     carrotState.holder = holder;
+    if (previousHolder === "ground" && holder !== "ground" && openingState.active) finishOpening();
     if (holder === "player") {
         playerState.mode = "eating";
         playerState.carrotHitCount = 0;
@@ -660,15 +743,19 @@ function receivePlayerPunchHit(attackDirection) {
     if (playerState.hasCarrot && ++playerState.carrotHitCount >= 3) dropCarrot("player", "punch");
     clearTimeout(playerHitEffectTimer);
     player.classList.remove("is-hit");
+    carrot.classList.remove("is-hit");
     playerHitMark.classList.remove("is-visible");
     void player.offsetWidth;
     player.classList.add("is-hit");
+    if (carrotState.holder === "player") carrot.classList.add("is-hit");
     playerHitMark.classList.add("is-visible");
     playerHitEffectTimer = setTimeout(() => {
         player.classList.remove("is-hit");
+        carrot.classList.remove("is-hit");
         playerHitMark.classList.remove("is-visible");
         playerHitEffectTimer = null;
     }, 280);
+    recordOpeningHit("cpu");
     return true;
 }
 
@@ -753,6 +840,7 @@ function startDodge(direction) {
     updateStaminaRecovery();
     actionInProgress = true;
     dodgePhase = "start";
+    updateCarrotDisplay();
     dodgeDirection = direction;
     dodgeStartedAt = performance.now();
     const generation = ++dodgeGeneration;
@@ -788,6 +876,7 @@ function cancelDodge() {
     dodgeTimer = null;
     dodgePhase = null;
     dodgeDirection = null;
+    updateCarrotDisplay();
     actionInProgress = false;
 }
 
@@ -978,6 +1067,7 @@ function finishStruggle(generation) {
 function showCpuCurrentState() {
     cpu.src = cpuState.mode === "sleeping" ? cpuImages.sleep :
         cpuState.mode === "sittingEating" ? cpuImages.sit : cpuNormalImage;
+    updateCarrotDisplay();
 }
 
 function setCpuStamina(value, triggerFatigue = true) {
@@ -1048,6 +1138,7 @@ function enterCpuFatigue() {
 
 function cancelCpuPickup() {
     if (cpuState.mode !== "picking") return;
+    releaseOpeningClaim("cpu");
     clearTimeout(cpuState.pickupTimer);
     cpuState.pickupGeneration += 1;
     cpuState.pickupTimer = null;
@@ -1058,6 +1149,7 @@ function cancelCpuPickup() {
 
 function tryStartCpuPickup() {
     if (matchState.finished || struggleState.active || roarState.phase || carrotState.holder !== "ground" || cpuState.mode !== "normal" ||
+        (openingState.active && openingState.claimant !== "cpu") ||
         cpuState.fatigued || performance.now() < cpuState.nextPickupAt ||
         performance.now() < carrotState.repickupBlockedUntil.cpu) return;
     updateCpuStaminaRecovery();
@@ -1074,6 +1166,7 @@ function tryStartCpuPickup() {
         cpuState.pickupTimer = null;
         cpuState.mode = "normal";
         if (carrotState.holder === "ground" && !cpuState.fatigued) setCarrotHolder("cpu");
+        releaseOpeningClaim("cpu");
         showCpuCurrentState();
         cpuState.nextPickupAt = performance.now() + cpuRandomBetween(cpuAi.pickupDelayMin, cpuAi.pickupDelayMax);
     }, pickupDuration);
@@ -1146,7 +1239,8 @@ function cpuBrainTick() {
         if (Math.random() < cpuAi.roarChance && beginRoar("cpu")) return;
     }
     if (cpuState.mode === "sleeping") {
-        if (!cpuState.fatigued && (cpuState.stamina >= cpuAi.wakeStamina || carrotState.holder === "ground")) startCpuStandUp();
+        if (!cpuState.fatigued && (cpuState.stamina >= cpuAi.wakeStamina ||
+            (carrotState.holder === "ground" && !openingState.active))) startCpuStandUp();
         return;
     }
     if (cpuState.mode === "sittingEating") {
@@ -1164,7 +1258,7 @@ function cpuBrainTick() {
             cpuState.sitUntil = performance.now() + cpuRandomBetween(cpuAi.sitMin, cpuAi.sitMax);
             showCpuCurrentState();
         }
-    } else if (carrotState.holder === "player") {
+    } else if (carrotState.holder === "player" || (carrotState.holder === "ground" && openingState.active)) {
         if (cpuState.stamina <= cpuAi.sleepThreshold) {
             cpuState.mode = "sleeping";
             cpuState.sleepHitCount = 0;
@@ -1189,11 +1283,13 @@ function cancelPunch() {
     punchGeneration += 1;
     punchTimer = null;
     punchPhase = null;
+    updateCarrotDisplay();
     actionInProgress = false;
 }
 
 function cancelPickup() {
     if (!pickupInProgress) return;
+    releaseOpeningClaim("player");
     clearTimeout(pickupTimer);
     pickupGeneration += 1;
     pickupTimer = null;
@@ -1204,6 +1300,7 @@ function cancelPickup() {
 
 function tryStartPickup() {
     if (matchState.finished || struggleState.active || carrotState.holder !== "ground" || playerState.mode !== "normal" || fatigued ||
+        (openingState.active && openingState.claimant !== "player") ||
         playerRoarStunned || playerCounterStunned || roarState.phase ||
         actionInProgress || roarInProgress || standingUp || punchPhase || dodgePhase ||
         pendingRoar || pressedPunchButtons.size > 0 ||
@@ -1226,12 +1323,32 @@ function tryStartPickup() {
         pickupInProgress = false;
         actionInProgress = false;
         if (carrotState.holder === "ground" && !fatigued) setCarrotHolder("player");
+        releaseOpeningClaim("player");
         showCurrentState();
     }, pickupDuration);
 }
 
 // 入力イベントと既存アクションの終了処理が先に走るよう、取得は次の更新で判定する。
 setInterval(tryStartPickup, 100);
+
+// 各フレームを即時に差し替える共通処理。世代判定は呼び出し側から渡す。
+function playPlayerFrameSequence(frames, isCurrent, setTimer, onFrame, onComplete) {
+    let index = 0;
+    const showFrame = () => {
+        if (!isCurrent()) return;
+        const frame = frames[index];
+        showPlayerImage(frame.image, frame.compactPose ?? false, frame.fullFrame ?? false);
+        onFrame(index);
+        if (!isCurrent()) return;
+        setTimer(setTimeout(() => {
+            if (!isCurrent()) return;
+            index += 1;
+            if (index < frames.length) showFrame();
+            else onComplete();
+        }, frame.duration));
+    };
+    showFrame();
+}
 
 function startPunch(button) {
     if (matchState.finished || struggleState.active || actionInProgress || fatigued || playerRoarStunned || playerCounterStunned ||
@@ -1241,32 +1358,32 @@ function startPunch(button) {
     updateStaminaRecovery();
     actionInProgress = true;
     punchPhase = "windup";
+    updateCarrotDisplay();
     changeStamina(-punchStaminaCost);
     const generation = ++punchGeneration;
-    const frames = punchFrames[button];
     const attackDirection = button === 0 ? "left" : "right";
-    showPlayerImage(frames.windup);
     maybeCpuDodge(attackDirection, generation);
 
-    punchTimer = setTimeout(() => {
-        if (generation !== punchGeneration) return;
-        punchPhase = "contact";
-        showPlayerImage(frames.contact);
-        receiveCpuPunchHit(generation, attackDirection);
-        punchTimer = setTimeout(() => {
-            if (generation !== punchGeneration) return;
-            punchPhase = "recovery";
-            showPlayerImage(frames.recovery);
-            punchTimer = setTimeout(() => {
-                if (generation !== punchGeneration) return;
-                updateStaminaRecovery();
-                punchPhase = null;
-                punchTimer = null;
-                showCurrentState();
-                actionInProgress = false;
-            }, punchDurations.recovery);
-        }, punchDurations.contact);
-    }, punchDurations.windup);
+    playPlayerFrameSequence(
+        button === 0 ? leftPunchFrames : rightPunchFrames,
+        () => generation === punchGeneration && !matchState.finished,
+        (timer) => { punchTimer = timer; },
+        (index) => {
+            if (index === 3) {
+                punchPhase = "contact";
+                receiveCpuPunchHit(generation, attackDirection);
+            } else if (index === 4) {
+                punchPhase = "recovery";
+            }
+        },
+        () => {
+            updateStaminaRecovery();
+            punchPhase = null;
+            punchTimer = null;
+            showCurrentState();
+            actionInProgress = false;
+        }
+    );
 }
 
 function cancelCpuActionForRoar() {
