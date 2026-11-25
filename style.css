@@ -18,12 +18,12 @@ body {
 /* 1920×1080 の画面をコンテナ単位で等比縮小する。 */
 #game-screen {
     /* キャラクター調整値。PNGの透明余白を含む画像全体の幅と左上座標。 */
-    --player-width: 122cqw;
-    --player-left: -25cqw;
-    --player-top: 19cqh;
-    --cpu-width: 37cqw;
-    --cpu-left: 39.5cqw;
-    --cpu-top: 20.3cqh;
+    --player-width: 100cqw;
+    --player-left: 0cqw;
+    --player-top: 0cqh;
+    --cpu-width: 100cqw;
+    --cpu-left: 0cqw;
+    --cpu-top: 0cqh;
     /* 所持中のにんじん位置。立ち姿と座り姿で調整する。 */
     --carrot-standing-left: 46cqw;
     --carrot-standing-top: 34cqh;
@@ -307,7 +307,7 @@ body {
 
 #battle-timer {
     position: relative;
-    margin-top: 2cqh;
+    margin-top: -3.3cqh;
     color: #fff;
     font: 900 8.9cqh/1 Arial, sans-serif;
     letter-spacing: -0.3cqw;

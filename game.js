@@ -48,48 +48,42 @@ const struggleTwoPlayerFeedback = document.getElementById("struggle-2p-feedback"
 const struggleInstruction = document.getElementById("struggle-instruction");
 const struggleOpponentLabel = document.getElementById("struggle-opponent-label");
 const normalImage = player.getAttribute("src");
-const sittingImage = "assets/characters/player/sit/座り_プレイヤー.png";
+const sittingImage = "assets/characters/player/sit/Sit_1P.png";
 const punchImages = {
-    0: "assets/characters/player/punch/パンチ_プレイヤー_左.png",
-    2: "assets/characters/player/punch/パンチ_プレイヤー_右.png",
+    0: "assets/characters/player/punch/Punch_Left_1P.png",
+    2: "assets/characters/player/punch/Punch_Right_1P.png",
 };
 // 全画面PNGの位置は画面に対する割合（cqw / cqh）。コピー数や移動幅も調整できる。
 const rightPunchMotion = {
     windup: 300, windupHold: 140, contact: 100, recovery: 120,
     layers: [
-        { image: "assets/characters/player/Stand_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7, offsetY: 0 },
-        { image: "assets/characters/player/punch/Punch_Right_1P_残像.png", copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7, offsetY: 0 },
+        { image: "assets/characters/player/stand/Stand_afterimage_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7, offsetY: 0 },
+        { image: "assets/characters/player/punch/Punch_Right_afterimage_1P.png", copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7, offsetY: 0 },
     ],
 };
 function makeMotionConfig(image, direction, windup, windupHold, contact, recovery) {
     return {
         windup, windupHold, contact, recovery,
         layers: [
-            { image: "assets/characters/player/Stand_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7 * direction, offsetY: 0 },
+            { image: "assets/characters/player/stand/Stand_afterimage_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7 * direction, offsetY: 0 },
             { image, copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7 * direction, offsetY: 0 },
         ],
     };
 }
-const leftPunchMotion = makeMotionConfig("assets/characters/player/punch/Punch_Left_1P.png", -1, 180, 84, 100, 170);
+const leftPunchMotion = makeMotionConfig("assets/characters/player/punch/Punch_Left_1P_afterimage.png", -1, 180, 84, 100, 170);
 const dodgeImages = {
-    left: "assets/characters/player/dodge/回避_プレイヤー_左.png",
-    right: "assets/characters/player/dodge/回避_プレイヤー_右.png",
+    left: "assets/characters/player/dodge/Dodge_Left_1P.png",
+    right: "assets/characters/player/dodge/Dodge_Right_1P.png",
 };
 const dodgeMotions = {
-    left: makeMotionConfig("assets/characters/player/dodge/Dodge_Left_1P.png", -1, 80, 35, 140, 120),
-    right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_1P.png", 1, 80, 35, 140, 120),
+    left: makeMotionConfig("assets/characters/player/dodge/Dodge_Left_afterimage_1P.png", -1, 80, 35, 140, 120),
+    right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_afterimage_1P.png", 1, 80, 35, 140, 120),
 };
-// 1920×1080の基準画面上での画像左上座標。
-dodgeMotions.left.endPosition = { x: 35, y: 362 };
-dodgeMotions.right.endPosition = { x: 216, y: 321 };
-// 不透明部分の中心。全画面の残像と縦長の到達姿勢の透明余白を合わせる。
-dodgeMotions.left.anchors = { stand: { x: 715, y: 682.5 }, ghost: { x: 622.5, y: 700 }, pose: { x: 534, y: 734 } };
-dodgeMotions.right.anchors = { stand: { x: 715, y: 682.5 }, ghost: { x: 799, y: 701 }, pose: { x: 552, y: 734 } };
-const roarImage = "assets/characters/player/roar/咆哮_プレイヤー.png";
-const sitAfterimage1 = "assets/characters/player/sit/座る_プレイヤー_残像1_.png";
-const sitAfterimage2 = "assets/characters/player/sit/座る_プレイヤー_残像2.png";
-const roarAfterimage1 = "assets/characters/player/roar/咆哮_プレイヤー_残像1.png";
-const roarAfterimage2 = "assets/characters/player/roar/咆哮_プレイヤー_残像2.png";
+const roarImage = "assets/characters/player/roar/Roar_1P.png";
+const sitAfterimage1 = "assets/characters/player/stand/Stand_1P.png";
+const sitAfterimage2 = "assets/characters/player/sit/Sit_1P.png";
+const roarAfterimage1 = "assets/characters/player/stand/Stand_1P.png";
+const roarAfterimage2 = "assets/characters/player/roar/Roar_1P.png";
 const sittingFrames = [
     { image: sitAfterimage1, duration: 80, fullFrame: true },
     { image: sitAfterimage2, duration: 80, fullFrame: true },
@@ -106,13 +100,13 @@ const roarFrames = [
     { image: roarAfterimage2, duration: 150, fullFrame: true },
     { image: roarAfterimage1, duration: 150, fullFrame: true },
 ];
-const pickupImage = "assets/characters/player/pick up/拾い_プレイヤー.png";
+const pickupImage = "assets/characters/player/pick up/Pick up_1P.png";
 const pickupFrames = [
-    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_1.png", duration: 90, fullFrame: true },
-    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_2.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
     { image: pickupImage, duration: 90, compactPose: true },
-    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_2.png", duration: 90, fullFrame: true },
-    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_1.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
 ];
 const roarFill = document.querySelector(".player-gauges .roar .gauge-fill");
 const staminaFill = document.querySelector(".player-gauges .stamina .gauge-fill");
@@ -132,7 +126,7 @@ const resultDisplayDuration = 2200;
 const stageIntroDuration = 1500;
 const fightIntroDuration = 800;
 const roarWarningDuration = 600;
-const roarTargetLockDuration = 4000;
+const roarTargetLockDuration = 2000; // 演出の1秒と合わせて3秒
 const roarCounterLockDuration = 2000;
 const eatingPercentPerSecond = 5;
 const maxStamina = 10;
@@ -141,7 +135,7 @@ const hitStaminaCost = 1;
 const dodgeRoarGain = 5;
 const punchInvulnerabilityDuration = 1500;
 const carrotRepickupDelay = 800;
-const naturalRecoveryInterval = 2000;
+const naturalRecoveryInterval = 1000;
 const sleepRecoveryInterval = 1000;
 const sleepRecoveryAmount = 2;
 const fatigueDuration = 4000;
@@ -284,7 +278,6 @@ const struggleState = {
     active: false, generation: 0, endsAt: 0,
     playerGood: 0, cpuGood: 0,
     lastPlayerButton: null, lastCpuButton: null,
-    pressedButtons: new Set(),
     finishTimer: null, displayTimer: null, cpuTimer: null,
 };
 let struggleAudioContext = null;
@@ -306,17 +299,20 @@ const openingState = {
 function configureStage(index) {
     stageIndex = index;
     const stage = stages[index];
-    const name = stage.character;
     cpuAi = cpuProfiles[stage.rank];
     struggleCpuProfile = struggleCpuProfiles[stage.rank];
-    cpuNormalImage = `assets/characters/cpu/${name}.png`;
+    const cpuAssets = [
+        { folder: "1_Normal", stand: "Stand_enemy.png", roar: "Roar_1.png", leftPunch: "Punch_Left_1.png", rightPunch: "Punch_Right_enemy.png", leftDodge: "Dodge_Left_enemy.png", rightDodge: "Dodge_Right_enemy.png", pickup: "Pick up_1.png", sit: "Sit_1.png", sleep: "Sleep_1.png" },
+        { folder: "2_Army", stand: "Stand_enemy2.png", roar: "Roar_enemy2.png", leftPunch: "Punch_left_enemy2.png", rightPunch: "Punch_Right_enemy2.png", leftDodge: "Dodge_Left_enemy2.png", rightDodge: "Dodge_Right_enemy2.png", pickup: "Pick up_enemy2.png", sit: "Sit_enemy2.png", sleep: "Sleep_enemy2.png" },
+        { folder: "3_Champion", stand: "Stand_enemy3.png", roar: "Roar_enemy3.png", leftPunch: "Punch_Left_enemy3.png", rightPunch: "Punch_Right_enemy3.png", leftDodge: "Dodge_Left_enemy3.png", rightDodge: "Dodge_Right_enemy3.png", pickup: "Pick up_enemy3.png", sit: "Sit_enemy3.png", sleep: "Sleep_enemy3.png" },
+    ][index];
+    const asset = (action, file) => `assets/characters/cpu/${cpuAssets.folder}/${action}/${file}`;
+    cpuNormalImage = asset("stand", cpuAssets.stand);
     cpuImages = {
-        roar: `assets/characters/cpu/roar/咆哮_${name}.png`,
-        punch: { left: `assets/characters/cpu/punch/パンチ_${name}_左.png`, right: `assets/characters/cpu/punch/パンチ_${name}_右.png` },
-        dodge: { left: `assets/characters/cpu/dodge/回避_${name}_左.png`, right: `assets/characters/cpu/dodge/回避_${name}_右.png` },
-        pickup: `assets/characters/cpu/pick up/拾い_${name}.png`,
-        sit: `assets/characters/cpu/sit/座り_${name}.png`,
-        sleep: `assets/characters/cpu/sleep/眠り_${name}.png`,
+        roar: asset("roar", cpuAssets.roar),
+        punch: { left: asset("punch", cpuAssets.leftPunch), right: asset("punch", cpuAssets.rightPunch) },
+        dodge: { left: asset("dodge", cpuAssets.leftDodge), right: asset("dodge", cpuAssets.rightDodge) },
+        pickup: asset("pick up", cpuAssets.pickup), sit: asset("sit", cpuAssets.sit), sleep: asset("sleep", cpuAssets.sleep),
     };
     gameScreen.style.backgroundImage = `url("assets/backgrounds/背景_${stage.background}.png")`;
     stageLabel.src = `assets/stage/${stage.label}`;
@@ -531,7 +527,6 @@ function stopBattleActions() {
     struggleState.cpuTimer = null;
     struggleState.active = false;
     struggleState.generation += 1;
-    struggleState.pressedButtons.clear();
     stopStruggleMusic();
     struggleUi.hidden = true;
     gameScreen.classList.remove("is-struggling");
@@ -871,10 +866,6 @@ setInterval(() => {
 }, 100);
 
 function showPlayerImage(image, compactPose = false, fullFrame = false, position = null) {
-    player.classList.toggle("is-full-frame", fullFrame);
-    player.style.width = compactPose ? "42cqw" : "";
-    player.style.left = position ? `${position.x / 1920 * 100}cqw` : compactPose ? "16cqw" : "";
-    player.style.top = position ? `${position.y / 1080 * 100}cqh` : "";
     player.src = image;
 }
 
@@ -1258,8 +1249,7 @@ function stopStruggleMusic() {
 
 function recordStrugglePlayerInput(button) {
     if (!struggleState.active || performance.now() >= struggleState.endsAt ||
-        (button !== 0 && button !== 2) || struggleState.pressedButtons.has(button)) return;
-    struggleState.pressedButtons.add(button);
+        (button !== 0 && button !== 2)) return;
     startStruggleMusic();
     const good = struggleState.lastPlayerButton === null || struggleState.lastPlayerButton !== button;
     struggleState.lastPlayerButton = button;
@@ -1299,7 +1289,6 @@ function startStruggle() {
     clearPendingRoar();
     clearTwoPlayerInput();
     pressedPunchButtons.clear();
-    struggleState.pressedButtons.clear();
     struggleState.active = true;
     const generation = ++struggleState.generation;
     struggleState.endsAt = performance.now() + struggleDuration;
@@ -1316,7 +1305,7 @@ function startStruggle() {
     struggleTwoPlayerFeedback.textContent = "";
     struggleTwoPlayerFeedback.className = "struggle-feedback";
     struggleTwoPlayerFeedback.hidden = gameMode !== "2p";
-    struggleInstruction.textContent = gameMode === "2p" ? "1P：左右クリック　2P：J / K を交互に！" : "左右交互にクリック！";
+    struggleInstruction.textContent = gameMode === "2p" ? "1P：ホイール上・下　2P：J / K を交互に！" : "ホイール上・下 または J / K を交互に！";
     struggleOpponentLabel.textContent = gameMode === "2p" ? "2P" : "CPU";
     gameScreen.classList.add("is-struggling");
     struggleUi.hidden = false;
@@ -1340,7 +1329,6 @@ function finishStruggle(generation) {
         struggleState.playerGood > struggleState.cpuGood ? "player" : "cpu";
     struggleState.active = false;
     clearTwoPlayerInput();
-    struggleState.pressedButtons.clear();
     pressedPunchButtons.clear();
     struggleState.lastPlayerButton = null;
     struggleState.lastCpuButton = null;
@@ -1693,21 +1681,6 @@ function renderMotionVisual(config, progress) {
             image.style.opacity = String(layer.opacity * intensity * (1 - copy / layer.copies));
             let x = layer.offsetX * copy * intensity;
             let y = layer.offsetY * copy * intensity;
-            if (config.anchors && config.endPosition) {
-                const { stand, ghost, pose } = config.anchors;
-                // 到達画像は幅42cqw、元画像は幅1086px。両者の可視部分の中心を一致させる。
-                const poseScale = (1920 * 0.42) / 1086;
-                const endX = config.endPosition.x + pose.x * poseScale;
-                const endY = config.endPosition.y + pose.y * poseScale;
-                const startX = layer.fade === "in" ? stand.x - ghost.x : 0;
-                const startY = layer.fade === "in" ? stand.y - ghost.y : 0;
-                const finishX = layer.fade === "in" ? endX - ghost.x : endX - stand.x;
-                const finishY = layer.fade === "in" ? endY - ghost.y : endY - stand.y;
-                const clamp = (value, a, b) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), value));
-                const trail = progress * (1 - progress);
-                x = clamp(startX + (finishX - startX) * progress + x * 1920 / 100 * trail, startX, finishX) / 1920 * 100;
-                y = clamp(startY + (finishY - startY) * progress + y * 1080 / 100 * trail, startY, finishY) / 1080 * 100;
-            }
             image.style.transform = `translate(${x}cqw, ${y}cqh)`;
         }
     }
@@ -1843,26 +1816,20 @@ function applyRoarToTarget(target) {
         if (dodgePhase) cancelDodge();
         if (pickupInProgress) cancelPickup();
         if (standingUp) cancelStandUp();
-        clearTimeout(fatigueTimer);
-        fatigueTimer = null;
-        fatigued = false;
         if (playerState.hasCarrot) dropCarrot("player", "roar");
         playerState.mode = "normal";
         playerState.sleepHitCount = 0;
         playerRoarStunned = true;
         actionInProgress = true;
-        setStamina(0, false);
+        setStamina(Math.ceil(stamina / 2), false);
         showCurrentState();
         player.classList.add("is-roar-hit");
     } else {
         cancelCpuActionForRoar();
-        clearTimeout(cpuState.fatigueTimer);
-        cpuState.fatigueTimer = null;
-        cpuState.fatigued = false;
         if (carrotState.holder === "cpu") dropCarrot("cpu", "roar");
         cpuState.mode = "roarStunned";
         cpuState.roarStunned = true;
-        setCpuStamina(0, false);
+        setCpuStamina(Math.ceil(cpuState.stamina / 2), false);
         showCpuCurrentState();
         cpu.classList.add("is-roar-hit");
     }
@@ -1873,13 +1840,11 @@ function releaseRoarTarget(target) {
         playerRoarStunned = false;
         actionInProgress = false;
         playerState.mode = playerState.hasCarrot ? "eating" : "normal";
-        setStamina(fatigueRecoveryStamina);
         lastStaminaUpdate = performance.now();
         showCurrentState();
     } else {
         cpuState.roarStunned = false;
-        cpuState.mode = carrotState.holder === "cpu" ? "eating" : "normal";
-        setCpuStamina(fatigueRecoveryStamina);
+        cpuState.mode = cpuState.fatigued ? "fatigued" : carrotState.holder === "cpu" ? "eating" : "normal";
         cpuState.lastStaminaUpdate = performance.now();
         showCpuCurrentState();
     }
@@ -1994,7 +1959,14 @@ function startTwoPlayerSit() {
 }
 
 window.addEventListener("keydown", (event) => {
-    if (gameMode !== "2p" || matchState.finished || !["KeyD", "KeyF", "KeyJ", "KeyK", "Space"].includes(event.code)) return;
+    if (matchState.finished || !["KeyD", "KeyF", "KeyJ", "KeyK", "Space"].includes(event.code)) return;
+    if (gameMode !== "2p") {
+        if (struggleState.active && (event.code === "KeyJ" || event.code === "KeyK")) {
+            event.preventDefault();
+            if (!event.repeat) recordStrugglePlayerInput(event.code === "KeyJ" ? 0 : 2);
+        }
+        return;
+    }
     event.preventDefault();
     if (event.repeat || twoPlayerKeys.has(event.code)) return;
     twoPlayerKeys.add(event.code);
@@ -2049,7 +2021,6 @@ gameScreen.addEventListener("mousedown", (event) => {
     if (matchState.finished) return;
     if (struggleState.active) {
         if (event.button === 2) event.preventDefault();
-        recordStrugglePlayerInput(event.button);
         return;
     }
     if (pickupInProgress && event.button === 1) {
@@ -2096,12 +2067,10 @@ gameScreen.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("mouseup", (event) => {
-    struggleState.pressedButtons.delete(event.button);
     pressedPunchButtons.delete(event.button);
 });
 
 window.addEventListener("blur", () => {
-    struggleState.pressedButtons.clear();
     pressedPunchButtons.clear();
     clearPendingRoar();
     clearTwoPlayerInput();
@@ -2113,8 +2082,11 @@ gameScreen.addEventListener("auxclick", (event) => {
 
 gameScreen.addEventListener("wheel", (event) => {
     event.preventDefault();
-    if (matchState.finished || struggleState.active) return;
-    if (event.deltaY === 0) return;
+    if (matchState.finished || event.deltaY === 0) return;
+    if (struggleState.active) {
+        recordStrugglePlayerInput(event.deltaY < 0 ? 0 : 2);
+        return;
+    }
     if (actionInProgress || fatigued || playerRoarStunned || playerCounterStunned) return;
 
     clearPendingRoar();

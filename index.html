@@ -9,13 +9,13 @@
 </head>
 <body>
     <main id="game-screen" aria-label="ふれあいまーもっと 戦闘画面">
-        <img id="cpu" src="assets/characters/cpu/ノーマル.png" alt="CPUのまーもっと">
+        <img id="cpu" src="assets/characters/cpu/1_Normal/stand/Stand_enemy.png" alt="CPUのまーもっと">
         <div id="cpu-hit-mark" aria-hidden="true">HIT!</div>
         <div id="player-hit-mark" aria-hidden="true">HIT!</div>
         <div id="roar-warning" role="status" aria-live="assertive" hidden>WARNING!</div>
         <div id="first-hit-label" role="status" aria-live="polite" hidden>FIRST HIT!</div>
         <img id="carrot" src="assets/carrots/リアルにんじん.png" alt="にんじん">
-        <img id="player" src="assets/characters/プレイヤー.png" alt="プレイヤーのまーもっと">
+        <img id="player" src="assets/characters/player/stand/Stand_1P.png" alt="プレイヤーのまーもっと">
 
         <div id="battle-ui">
             <div class="gauge-group player-gauges" aria-label="プレイヤーのゲージ">
@@ -53,8 +53,8 @@
         </div>
         <div id="struggle-ui" aria-live="polite" hidden>
             <div class="struggle-title">にんじん争奪！</div>
-            <div class="struggle-mouse" aria-label="左クリックと右クリックを交互に押す"><span>左</span><span>右</span></div>
-            <div class="struggle-instruction" id="struggle-instruction">左右交互にクリック！</div>
+            <div class="struggle-mouse" aria-label="ホイールを上と下に交互に操作"><span>上</span><span>下</span></div>
+            <div class="struggle-instruction" id="struggle-instruction">ホイール上・下 または J / K を交互に！</div>
             <div id="struggle-time" class="struggle-time">3</div>
             <div class="struggle-scores"><span>1P GOOD <strong id="struggle-player-score">0</strong></span><span><span id="struggle-opponent-label">CPU</span> GOOD <strong id="struggle-cpu-score">0</strong></span></div>
             <div id="struggle-feedback" class="struggle-feedback" aria-live="assertive"></div>
@@ -75,7 +75,7 @@
             <p>1P：マウスでパンチ・回避・座り</p>
             <p>2P：D / F パンチ　J / K 回避　Space 座り</p>
             <p>2P：D＋Fを長押しで咆哮（ゲージ100%）</p>
-            <p>にんじん争奪中は1Pが左右クリック、2PがJ / Kを交互に入力</p>
+            <p>にんじん争奪中は1Pがホイール上・下、2PがJ / Kを交互に入力</p>
             <button id="two-player-start" type="button">対戦開始</button>
             <button id="two-player-back" type="button">タイトルへ</button>
         </section>
