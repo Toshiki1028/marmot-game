@@ -2,6 +2,16 @@
 const gameScreen = document.getElementById("game-screen");
 const player = document.getElementById("player");
 const cpu = document.getElementById("cpu");
+const staminaEffectElements = {
+    player: document.getElementById("player-stamina-effect"),
+    cpu: document.getElementById("cpu-stamina-effect"),
+};
+const staminaEffectSettings = {
+    fadeIn: 250, hold: 300, fadeOut: 450, startY: -20, endY: 20,
+    player: { x: 37, y: 20 },
+    cpu: [{ x: 59, y: 14 }, { x: 59, y: 14 }, { x: 60, y: 10 }],
+};
+const staminaEffectFrames = { player: null, cpu: null };
 let cpuNormalImage = cpu.getAttribute("src");
 const cpuHitMark = document.getElementById("cpu-hit-mark");
 const playerHitMark = document.getElementById("player-hit-mark");
@@ -49,13 +59,29 @@ const struggleInstruction = document.getElementById("struggle-instruction");
 const struggleOpponentLabel = document.getElementById("struggle-opponent-label");
 const normalImage = player.getAttribute("src");
 const sittingImage = "assets/characters/player/sit/Sit_1P.png";
+const sleepingImage = "assets/characters/player/sleep/Sleep_1P.png";
+const sleepingBubbleImage = "assets/characters/player/sleep/Sleep2_1P.png";
+const eatingImages = { standing: "assets/characters/player/eat/eat1_1P.png", sitting: "assets/characters/player/eat/eat2_1P.png" };
 const punchImages = {
     0: "assets/characters/player/punch/Punch_Left_1P.png",
     2: "assets/characters/player/punch/Punch_Right_1P.png",
 };
 // 全画面PNGの位置は画面に対する割合（cqw / cqh）。コピー数や移動幅も調整できる。
+const actionTimeScale = 1.3;
+const actionTimings = {
+    punch: {
+        left: { windup: 180, hold: 84, contact: 100, recovery: 170 },
+        right: { windup: 300, hold: 140, contact: 100, recovery: 120 },
+    },
+    dodge: { windup: 80, hold: 35, contact: 140, recovery: 180 },
+};
+function scaledActionTiming(timing) {
+    return Object.fromEntries(Object.entries(timing).map(([key, value]) => [key, Math.round(value * actionTimeScale)]));
+}
+const punchTimings = { left: scaledActionTiming(actionTimings.punch.left), right: scaledActionTiming(actionTimings.punch.right) };
+const dodgeTiming = scaledActionTiming(actionTimings.dodge);
 const rightPunchMotion = {
-    windup: 300, windupHold: 140, contact: 100, recovery: 120,
+    ...punchTimings.right, windupHold: punchTimings.right.hold,
     layers: [
         { image: "assets/characters/player/stand/Stand_afterimage_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7, offsetY: 0 },
         { image: "assets/characters/player/punch/Punch_Right_afterimage_1P.png", copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7, offsetY: 0 },
@@ -70,49 +96,38 @@ function makeMotionConfig(image, direction, windup, windupHold, contact, recover
         ],
     };
 }
-const leftPunchMotion = makeMotionConfig("assets/characters/player/punch/Punch_Left_1P_afterimage.png", -1, 180, 84, 100, 170);
+const leftPunchMotion = makeMotionConfig("assets/characters/player/punch/Punch_Left_1P_afterimage.png", -1, punchTimings.left.windup, punchTimings.left.hold, punchTimings.left.contact, punchTimings.left.recovery);
 const dodgeImages = {
     left: "assets/characters/player/dodge/Dodge_Left_1P.png",
     right: "assets/characters/player/dodge/Dodge_Right_1P.png",
 };
 const dodgeMotions = {
-    left: makeMotionConfig("assets/characters/player/dodge/Dodge_Left_afterimage_1P.png", -1, 80, 35, 140, 120),
-    right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_afterimage_1P.png", 1, 80, 35, 140, 120),
+    left: makeMotionConfig("assets/characters/player/dodge/Dodge_Left_afterimage_1P.png", -1, dodgeTiming.windup, dodgeTiming.hold, dodgeTiming.contact, dodgeTiming.recovery),
+    right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_afterimage_1P.png", 1, dodgeTiming.windup, dodgeTiming.hold, dodgeTiming.contact, dodgeTiming.recovery),
 };
 const roarImage = "assets/characters/player/roar/Roar_1P.png";
 const sitAfterimage1 = "assets/characters/player/stand/Stand_1P.png";
 const sitAfterimage2 = "assets/characters/player/sit/Sit_1P.png";
-const roarAfterimage1 = "assets/characters/player/stand/Stand_1P.png";
-const roarAfterimage2 = "assets/characters/player/roar/Roar_1P.png";
-const sittingFrames = [
-    { image: sitAfterimage1, duration: 80, fullFrame: true },
-    { image: sitAfterimage2, duration: 80, fullFrame: true },
-];
+const sittingMotion = { duration: 300, rotation: 5, scaleY: 0.9, moveDown: 0.5, originX: 37, originY: 100 };
+const sleepingMotion = {
+    duration: 300, rotation: 4, scaleY: 0.95, moveDown: 0.5, originX: 37, originY: 100,
+    breathPeriod: 2500, breathRotation: 0.5, breathMoveY: 1, breathScaleY: 0.01,
+    bubbleScaleMin: 0.6, bubbleScaleMax: 1, bubbleOriginX: 36.4, bubbleOriginY: 48,
+    bubbleClip: "ellipse(6.9% 12.2% at 42.6% 39.5%)",
+};
+const pickupMotion = { duration: 300, rotation: 7, scaleY: 0.9, moveDown: 0.5, originX: 37, originY: 100 };
+const roarMotion = { duration: 250, rotation: -6, scaleY: 1.05, moveDown: -0.3, originX: 37, originY: 100, hold: 500, shakePx: 2.5, shakePeriod: 80 };
 const standingFrames = [
     { image: sittingImage, duration: 50, compactPose: true },
     { image: sitAfterimage2, duration: 100, fullFrame: true },
     { image: sitAfterimage1, duration: 100, fullFrame: true },
 ];
-const roarFrames = [
-    { image: roarAfterimage1, duration: 150, fullFrame: true },
-    { image: roarAfterimage2, duration: 150, fullFrame: true },
-    { image: roarImage, duration: 400, compactPose: true },
-    { image: roarAfterimage2, duration: 150, fullFrame: true },
-    { image: roarAfterimage1, duration: 150, fullFrame: true },
-];
 const pickupImage = "assets/characters/player/pick up/Pick up_1P.png";
-const pickupFrames = [
-    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
-    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
-    { image: pickupImage, duration: 90, compactPose: true },
-    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
-    { image: "assets/characters/player/pick up/Pick up_afterimage_1P.png", duration: 90, fullFrame: true },
-];
 const roarFill = document.querySelector(".player-gauges .roar .gauge-fill");
 const staminaFill = document.querySelector(".player-gauges .stamina .gauge-fill");
 const staminaTrack = staminaFill.parentElement;
-const punchDurations = { windup: 180, contact: 100, recovery: 170 };
-const dodgeDurations = { start: 80, pose: 140, recovery: 180 };
+const dodgeDurations = { start: dodgeTiming.windup, pose: dodgeTiming.contact, recovery: dodgeTiming.recovery };
+const roarInputWindow = 180;
 const standUpDuration = 250;
 const pickupDuration = 450;
 const firstHitDisplayDuration = 800;
@@ -130,7 +145,8 @@ const roarTargetLockDuration = 2000; // 演出の1秒と合わせて3秒
 const roarCounterLockDuration = 2000;
 const eatingPercentPerSecond = 5;
 const maxStamina = 10;
-const punchStaminaCost = 1;
+const punchStaminaCost = 0.75;
+const dodgeStaminaCost = 1;
 const hitStaminaCost = 1;
 const dodgeRoarGain = 5;
 const punchInvulnerabilityDuration = 1500;
@@ -182,15 +198,17 @@ let actionInProgress = false;
 let punchPhase = null;
 let punchTimer = null;
 let punchGeneration = 0;
-let motionVisualFrame = null;
-let motionVisualGeneration = 0;
-let motionVisualLayers = [];
+const playerVisual = { frame: null, generation: 0, layers: [], className: "has-motion-ghosts" };
+const cpuVisual = { frame: null, generation: 0, layers: [], className: "has-cpu-motion-ghosts" };
+const cpuMotionOffsets = new Map();
 const pressedPunchButtons = new Set();
 let dodgePhase = null;
 let dodgeDirection = null;
 let dodgeStartedAt = 0;
 let dodgeTimer = null;
 let dodgeGeneration = 0;
+let dodgeRefunded = false;
+let dodgeCausedFatigue = false;
 let dodgeVisualTimer = null;
 let dodgeVisualGeneration = 0;
 let standingUp = false;
@@ -198,10 +216,14 @@ let standUpTimer = null;
 let standUpGeneration = 0;
 let poseVisualTimer = null;
 let poseVisualGeneration = 0;
+let poseVisualFrame = null;
+let sleepingBubbleLayer = null;
+let eatingVisualFrame = null;
+let eatingVisualGeneration = 0;
+let eatingVisualBlocked = false;
 let pickupInProgress = false;
 let pickupTimer = null;
 let pickupGeneration = 0;
-let pickupVisualTimer = null;
 let roarInProgress = false;
 let playerRoarStunned = false;
 let playerCounterStunned = false;
@@ -252,6 +274,8 @@ const cpuState = {
     dodgeDirection: null,
     dodgeStartedAt: 0,
     dodgeGeneration: 0,
+    dodgeRefunded: false,
+    dodgeCausedFatigue: false,
     lastResolvedPunch: -1,
     lastResolvedAttack: -1,
     punchGeneration: 0,
@@ -272,6 +296,12 @@ const cpuState = {
     sitUntil: 0,
 };
 let cpuHitEffectTimer = null;
+const cpuPose = { frame: null, generation: 0, kind: null };
+const cpuPoseAdjustments = [
+    { originX: 59, originY: 92, direction: -1 },
+    { originX: 59, originY: 92, direction: -1 },
+    { originX: 60, originY: 94, direction: -1 },
+];
 let playerHitEffectTimer = null;
 const roarState = { phase: null, attacker: null, generation: 0, warningTimer: null, effectTimer: null, cpuCancelTimer: null };
 const struggleState = {
@@ -302,9 +332,9 @@ function configureStage(index) {
     cpuAi = cpuProfiles[stage.rank];
     struggleCpuProfile = struggleCpuProfiles[stage.rank];
     const cpuAssets = [
-        { folder: "1_Normal", stand: "Stand_enemy.png", roar: "Roar_1.png", leftPunch: "Punch_Left_1.png", rightPunch: "Punch_Right_enemy.png", leftDodge: "Dodge_Left_enemy.png", rightDodge: "Dodge_Right_enemy.png", pickup: "Pick up_1.png", sit: "Sit_1.png", sleep: "Sleep_1.png" },
-        { folder: "2_Army", stand: "Stand_enemy2.png", roar: "Roar_enemy2.png", leftPunch: "Punch_left_enemy2.png", rightPunch: "Punch_Right_enemy2.png", leftDodge: "Dodge_Left_enemy2.png", rightDodge: "Dodge_Right_enemy2.png", pickup: "Pick up_enemy2.png", sit: "Sit_enemy2.png", sleep: "Sleep_enemy2.png" },
-        { folder: "3_Champion", stand: "Stand_enemy3.png", roar: "Roar_enemy3.png", leftPunch: "Punch_Left_enemy3.png", rightPunch: "Punch_Right_enemy3.png", leftDodge: "Dodge_Left_enemy3.png", rightDodge: "Dodge_Right_enemy3.png", pickup: "Pick up_enemy3.png", sit: "Sit_enemy3.png", sleep: "Sleep_enemy3.png" },
+        { folder: "1_Normal", stand: "Stand_enemy.png", roar: "Roar_1.png", leftPunch: "Punch_Left_1.png", rightPunch: "Punch_Right_enemy.png", leftDodge: "Dodge_Left_enemy.png", rightDodge: "Dodge_Right_enemy.png", pickup: "Pick up_1.png", sit: "Sit_1.png", sleep: "Sleep1_enemy.png", sleep2: "Sleep2_enemy.png", eat1: "Eat_1.png", eat2: "Eat_2.png" },
+        { folder: "2_Army", stand: "Stand_enemy2.png", roar: "Roar_enemy2.png", leftPunch: "Punch_left_enemy2.png", rightPunch: "Punch_Right_enemy2.png", leftDodge: "Dodge_Left_enemy2.png", rightDodge: "Dodge_Right_enemy2.png", pickup: "Pick up_enemy2.png", sit: "Sit_enemy2.png", sleep: "Sleep_enemy2.png", sleep2: "Sleep2_enemy2.png", eat1: "Eat_1_enemy2.png", eat2: "Eat_2_enemy2.png" },
+        { folder: "3_Champion", stand: "Stand_enemy3.png", roar: "Roar_enemy3.png", leftPunch: "Punch_Left_enemy3.png", rightPunch: "Punch_Right_enemy3.png", leftDodge: "Dodge_Left_enemy3.png", rightDodge: "Dodge_Right_enemy3.png", pickup: "Pick up_enemy3.png", sit: "Sit_enemy3.png", sleep: "Sleep_enemy3.png", sleep2: "Sleep2_enemy3.png", eat1: "Eat_1_enemy3.png", eat2: "Eat_2_enemy3.png" },
     ][index];
     const asset = (action, file) => `assets/characters/cpu/${cpuAssets.folder}/${action}/${file}`;
     cpuNormalImage = asset("stand", cpuAssets.stand);
@@ -313,7 +343,15 @@ function configureStage(index) {
         punch: { left: asset("punch", cpuAssets.leftPunch), right: asset("punch", cpuAssets.rightPunch) },
         dodge: { left: asset("dodge", cpuAssets.leftDodge), right: asset("dodge", cpuAssets.rightDodge) },
         pickup: asset("pick up", cpuAssets.pickup), sit: asset("sit", cpuAssets.sit), sleep: asset("sleep", cpuAssets.sleep),
+        sleep2: asset("sleep", cpuAssets.sleep2), eat: { standing: asset("eat", cpuAssets.eat1), sitting: asset("eat", cpuAssets.eat2) },
     };
+    const suffix = index === 0 ? "enemy" : `enemy${index + 1}`;
+    cpuImages.afterimage = {
+        stand: index === 0 ? cpuNormalImage : asset("stand", `Stand_afterimage_${suffix}.png`),
+        punch: { left: asset("punch", `Punch_${index === 1 ? "left" : "Left"}_afterimage_${suffix}.png`), right: asset("punch", `Punch_Right_afterimage_${suffix}.png`) },
+        dodge: { left: asset("dodge", `Dodge_Left_afterimage_${suffix}.png`), right: asset("dodge", `Dodge_Right_afterimage_${suffix}.png`) },
+    };
+    prepareCpuMotionImages(cpuImages.afterimage);
     gameScreen.style.backgroundImage = `url("assets/backgrounds/背景_${stage.background}.png")`;
     stageLabel.src = `assets/stage/${stage.label}`;
     stageLabel.alt = stage.name;
@@ -480,7 +518,12 @@ function tickMatchClock() {
 
 function stopBattleActions() {
     cancelPoseVisual();
+    clearStaminaEffect("player");
+    clearStaminaEffect("cpu");
+    stopCpuPose();
+    eatingVisualBlocked = false;
     clearMotionVisual();
+    clearMotionVisual(cpuVisual);
     clearTwoPlayerInput();
     clearOpeningTimers();
     clearPendingRoar();
@@ -502,8 +545,6 @@ function stopBattleActions() {
     standUpGeneration += 1;
     clearTimeout(pickupTimer);
     pickupTimer = null;
-    clearTimeout(pickupVisualTimer);
-    pickupVisualTimer = null;
     pickupInProgress = false;
     pickupGeneration += 1;
     actionInProgress = false;
@@ -706,9 +747,14 @@ function receiveCpuPunchHit(punchId, attackDirection) {
     cpuState.lastResolvedPunch = punchId;
     if (performance.now() < cpuState.punchInvulnerableUntil) return false;
     if (registerCpuDodge(attackDirection)) {
+        refundCpuDodge();
         setCpuRoarGauge(cpuState.roarGauge + dodgeRoarGain);
         return false;
     }
+    updateEatingProgress();
+    if (matchState.finished) return false;
+    stopCpuPose();
+    cpuState.dodgeCausedFatigue = false;
     matchScore.punchesLanded += 1;
     if (cpuState.mode === "picking") cancelCpuPickup();
     if (cpuState.mode === "sleeping" && ++cpuState.sleepHitCount >= 3) startCpuStandUp();
@@ -723,9 +769,11 @@ function receiveCpuPunchHit(punchId, attackDirection) {
     cpu.classList.add("is-hit");
     cpuHitMark.classList.add("is-visible");
     cpuHitEffectTimer = setTimeout(() => {
+        updateEatingProgress();
         cpu.classList.remove("is-hit");
         cpuHitMark.classList.remove("is-visible");
         cpuHitEffectTimer = null;
+        if (["sleeping", "sittingEating", "eating"].includes(cpuState.mode)) showCpuCurrentState();
     }, 280);
     if (carrotState.holder === "cpu" && cpuState.punchHitCount >= carrotDropHits) dropCarrot("cpu", "punch");
     recordOpeningHit("player");
@@ -752,11 +800,11 @@ function updateEatingProgress() {
     const elapsedSeconds = (now - lastEatingUpdate) / 1000;
     lastEatingUpdate = now;
     if (matchState.finished || struggleState.active) return;
-    if (playerState.hasCarrot && !actionInProgress && !fatigued && !playerRoarStunned && !playerCounterStunned && carrotState.remaining > 0) {
+    if (playerState.hasCarrot && playerHitEffectTimer === null && !actionInProgress && !fatigued && !playerRoarStunned && !playerCounterStunned && carrotState.remaining > 0) {
         addCarrotEaten("player", eatingPercentPerSecond * playerState.eatingSpeedMultiplier * elapsedSeconds);
     }
     if (matchState.finished) return;
-    if (carrotState.holder === "cpu" && !cpuState.fatigued && !cpuState.roarStunned && !cpuState.counterStunned &&
+    if (carrotState.holder === "cpu" && cpuHitEffectTimer === null && !cpuState.fatigued && !cpuState.roarStunned && !cpuState.counterStunned &&
         (cpuState.mode === "eating" || cpuState.mode === "sittingEating") && carrotState.remaining > 0) {
         addCarrotEaten("cpu", eatingPercentPerSecond *
             (cpuState.mode === "sittingEating" ? 2 : 1) * elapsedSeconds);
@@ -777,8 +825,56 @@ function updateCarrotDisplay() {
 updateCarrotGauge();
 updateCarrotDisplay();
 
+function clearStaminaEffect(side) {
+    if (staminaEffectFrames[side] !== null) cancelAnimationFrame(staminaEffectFrames[side]);
+    staminaEffectFrames[side] = null;
+    const element = staminaEffectElements[side];
+    element.hidden = true;
+    element.style.opacity = "";
+    element.style.transform = "";
+}
+
+function playStaminaEffect(side) {
+    clearStaminaEffect(side);
+    const element = staminaEffectElements[side];
+    const settings = staminaEffectSettings;
+    const position = side === "player" ? settings.player : settings.cpu[stageIndex];
+    element.style.left = `${position.x}cqw`;
+    element.style.top = `${position.y}cqh`;
+    element.style.opacity = "0";
+    element.style.transform = `translate(-50%, ${settings.startY}px)`;
+    element.hidden = false;
+    const started = performance.now();
+    const ease = (t) => t * t * (3 - 2 * t);
+    const render = (now) => {
+        const elapsed = now - started;
+        let opacity, offset;
+        if (elapsed < settings.fadeIn) {
+            const p = ease(Math.max(0, elapsed / settings.fadeIn));
+            opacity = p;
+            offset = settings.startY * (1 - p);
+        } else if (elapsed < settings.fadeIn + settings.hold) {
+            opacity = 1;
+            offset = 0;
+        } else if (elapsed < settings.fadeIn + settings.hold + settings.fadeOut) {
+            const p = ease((elapsed - settings.fadeIn - settings.hold) / settings.fadeOut);
+            opacity = 1 - p;
+            offset = settings.endY * p;
+        } else {
+            clearStaminaEffect(side);
+            return;
+        }
+        element.style.opacity = String(opacity);
+        element.style.transform = `translate(-50%, ${offset}px)`;
+        staminaEffectFrames[side] = requestAnimationFrame(render);
+    };
+    staminaEffectFrames[side] = requestAnimationFrame(render);
+}
+
 function setStamina(value, triggerFatigue = true) {
+    const previous = stamina;
     stamina = Math.max(0, Math.min(maxStamina, value));
+    if (previous > 0 && stamina === 0) playStaminaEffect("player");
     staminaFill.style.width = `${stamina / maxStamina * 100}%`;
     staminaTrack.setAttribute("aria-label", `スタミナ ${stamina}/${maxStamina}`);
     if (stamina === maxStamina) {
@@ -871,14 +967,127 @@ function showPlayerImage(image, compactPose = false, fullFrame = false, position
 
 function showCurrentState() {
     const isSitting = playerState.mode === "sleeping" || playerState.mode === "sittingEating";
-    showPlayerImage(isSitting ? sittingImage : normalImage, isSitting);
+    const image = playerState.hasCarrot ? (isSitting ? eatingImages.sitting : eatingImages.standing) : (playerState.mode === "sleeping" ? sleepingImage : normalImage);
+    showPlayerImage(image, isSitting);
     updateCarrotDisplay();
+    syncEatingVisual();
+}
+
+function stopEatingVisual() {
+    if (eatingVisualFrame !== null) {
+        cancelAnimationFrame(eatingVisualFrame);
+        eatingVisualFrame = null;
+        player.style.transform = "";
+    }
+    eatingVisualGeneration += 1;
+}
+
+function syncEatingVisual() {
+    stopEatingVisual();
 }
 
 function cancelPoseVisual() {
+    stopEatingVisual();
     clearTimeout(poseVisualTimer);
     poseVisualTimer = null;
+    if (poseVisualFrame !== null) cancelAnimationFrame(poseVisualFrame);
+    poseVisualFrame = null;
+    if (sleepingBubbleLayer) sleepingBubbleLayer.remove();
+    sleepingBubbleLayer = null;
+    player.style.transform = "";
+    player.style.transformOrigin = "";
     poseVisualGeneration += 1;
+}
+
+function playInterpolatedPose(motion, initialImage, onComplete, reverse = false) {
+    cancelPoseVisual();
+    const generation = poseVisualGeneration;
+    const startedAt = performance.now();
+    showPlayerImage(initialImage);
+    player.style.transformOrigin = `${motion.originX}% ${motion.originY}%`;
+    const render = (now) => {
+        if (generation !== poseVisualGeneration || matchState.finished) return;
+        const progress = Math.min(1, Math.max(0, (now - startedAt) / motion.duration));
+        const interpolation = progress * progress * (3 - 2 * progress);
+        const eased = reverse ? 1 - interpolation : interpolation;
+        const angle = motion.rotation * eased;
+        const scale = 1 + (motion.scaleY - 1) * eased;
+        const down = motion.moveDown * eased;
+        player.style.transform = `translateY(${down}cqh) rotate(${angle}deg) scaleY(${scale})`;
+        if (progress < 1) poseVisualFrame = requestAnimationFrame(render);
+        else {
+            poseVisualFrame = null;
+            player.style.transform = "";
+            player.style.transformOrigin = "";
+            onComplete();
+        }
+    };
+    if (reverse) render(startedAt);
+    else poseVisualFrame = requestAnimationFrame(render);
+}
+
+function startSleepBreathing() {
+    if (matchState.finished || playerState.mode !== "sleeping" || standingUp || fatigued || playerRoarStunned || playerCounterStunned) return;
+    showPlayerImage(sittingImage);
+    if (sleepingBubbleLayer) sleepingBubbleLayer.remove();
+    sleepingBubbleLayer = document.createElement("div");
+    sleepingBubbleLayer.className = "sleep-bubble-layer";
+    sleepingBubbleLayer.setAttribute("aria-hidden", "true");
+    const bubble = document.createElement("img");
+    bubble.src = sleepingBubbleImage;
+    bubble.alt = "";
+    bubble.style.clipPath = sleepingMotion.bubbleClip;
+    bubble.style.transformOrigin = `${sleepingMotion.bubbleOriginX}% ${sleepingMotion.bubbleOriginY}%`;
+    sleepingBubbleLayer.appendChild(bubble);
+    gameScreen.appendChild(sleepingBubbleLayer);
+    const origin = `${sleepingMotion.originX}% ${sleepingMotion.originY}%`;
+    player.style.transformOrigin = origin;
+    sleepingBubbleLayer.style.transformOrigin = origin;
+    const generation = poseVisualGeneration;
+    const startedAt = performance.now();
+    const render = (now) => {
+        if (generation !== poseVisualGeneration || matchState.finished || playerState.mode !== "sleeping" || standingUp) return;
+        const phase = (now - startedAt) * 2 * Math.PI / sleepingMotion.breathPeriod;
+        const eased = (1 - Math.cos(phase)) / 2;
+        const offset = -sleepingMotion.breathMoveY * eased;
+        const rotation = sleepingMotion.breathRotation * eased;
+        const scale = 1 + sleepingMotion.breathScaleY * eased;
+        const transform = `translateY(${offset}px) rotate(${rotation}deg) scaleY(${scale})`;
+        player.style.transform = transform;
+        sleepingBubbleLayer.style.transform = transform;
+        const bubbleScale = sleepingMotion.bubbleScaleMin + (sleepingMotion.bubbleScaleMax - sleepingMotion.bubbleScaleMin) * eased;
+        bubble.style.transform = `scale(${bubbleScale})`;
+        poseVisualFrame = requestAnimationFrame(render);
+    };
+    bubble.style.transform = `scale(${sleepingMotion.bubbleScaleMin})`;
+    poseVisualFrame = requestAnimationFrame(render);
+}
+
+function startSleepVisual() {
+    if (playerState.mode !== "sleeping" || standingUp || matchState.finished) return;
+    playInterpolatedPose(sleepingMotion, sittingImage, startSleepBreathing);
+}
+
+function playRoarVisual() {
+    playInterpolatedPose(roarMotion, normalImage, () => {
+        showPlayerImage(roarImage);
+        const generation = poseVisualGeneration;
+        const startedAt = performance.now();
+        const shake = (now) => {
+            if (generation !== poseVisualGeneration || matchState.finished) return;
+            const elapsed = now - startedAt;
+            if (elapsed >= roarMotion.hold) {
+                poseVisualFrame = null;
+                const image = playerState.hasCarrot ? eatingImages.standing : normalImage;
+                playInterpolatedPose(roarMotion, image, showCurrentState, true);
+                return;
+            }
+            const x = Math.sin(elapsed * 2 * Math.PI / roarMotion.shakePeriod) * roarMotion.shakePx;
+            player.style.transform = `translateX(${x}px)`;
+            poseVisualFrame = requestAnimationFrame(shake);
+        };
+        poseVisualFrame = requestAnimationFrame(shake);
+    });
 }
 
 function playPoseVisual(frames, onComplete = () => {}) {
@@ -980,13 +1189,19 @@ function receivePlayerPunchHit(attackDirection) {
     if (matchState.finished || struggleState.active) return false;
     if (performance.now() < playerState.punchInvulnerableUntil) return false;
     if (registerSuccessfulDodge(attackDirection)) {
+        refundPlayerDodge();
         setRoarGauge(roarGauge + dodgeRoarGain);
         return false;
     }
+    updateEatingProgress();
+    if (matchState.finished) return false;
+    eatingVisualBlocked = true;
+    stopEatingVisual();
+    dodgeCausedFatigue = false;
     matchScore.hitsTaken += 1;
-    if (poseVisualTimer !== null) {
+    if (poseVisualTimer !== null || poseVisualFrame !== null) {
         cancelPoseVisual();
-        if (standingUp) showPlayerImage(normalImage);
+        if (standingUp) showPlayerImage(playerState.hasCarrot ? eatingImages.standing : normalImage);
         else showCurrentState();
     }
     if (dodgePhase !== null) {
@@ -1010,10 +1225,14 @@ function receivePlayerPunchHit(attackDirection) {
     if (carrotState.holder === "player") carrot.classList.add("is-hit");
     playerHitMark.classList.add("is-visible");
     playerHitEffectTimer = setTimeout(() => {
+        updateEatingProgress();
         player.classList.remove("is-hit");
         carrot.classList.remove("is-hit");
         playerHitMark.classList.remove("is-visible");
         playerHitEffectTimer = null;
+        eatingVisualBlocked = false;
+        if (poseVisualFrame === null && poseVisualTimer === null) startSleepBreathing();
+        syncEatingVisual();
     }, 280);
     recordOpeningHit("cpu");
     return true;
@@ -1028,12 +1247,14 @@ function toggleSitting() {
         startStandUp();
         return;
     }
+    if (!playerState.hasCarrot && stamina <= 0) return;
     updateEatingProgress();
     if (matchState.finished) return;
     playerState.mode = playerState.hasCarrot ? "sittingEating" : "sleeping";
     playerState.sleepHitCount = 0;
     updateCarrotDisplay();
-    playPoseVisual(sittingFrames, showCurrentState);
+    playInterpolatedPose(sittingMotion, playerState.hasCarrot ? eatingImages.standing : normalImage,
+        playerState.hasCarrot ? showCurrentState : startSleepVisual);
 }
 
 function playAction(image, compactPose = false, duration = roarDuration, onComplete = null) {
@@ -1052,6 +1273,7 @@ function playAction(image, compactPose = false, duration = roarDuration, onCompl
         updateStaminaRecovery();
         showCurrentState();
         actionInProgress = false;
+        syncEatingVisual();
         if (onComplete) onComplete();
     }, duration);
 }
@@ -1079,6 +1301,7 @@ function startStandUp() {
         playerState.sleepHitCount = 0;
         showCurrentState();
         actionInProgress = false;
+        syncEatingVisual();
     }, standUpDuration);
 }
 
@@ -1092,7 +1315,7 @@ function cancelStandUp() {
 }
 
 function startDodge(direction) {
-    if (matchState.finished || struggleState.active || actionInProgress || fatigued || playerRoarStunned || playerCounterStunned || !dodgeMotions[direction]) return;
+    if (matchState.finished || struggleState.active || actionInProgress || fatigued || stamina < dodgeStaminaCost || playerRoarStunned || playerCounterStunned || !dodgeMotions[direction]) return;
 
     updateEatingProgress();
     if (matchState.finished) return;
@@ -1103,6 +1326,9 @@ function startDodge(direction) {
     updateCarrotDisplay();
     dodgeDirection = direction;
     dodgeStartedAt = performance.now();
+    dodgeRefunded = false;
+    changeStamina(-dodgeStaminaCost);
+    dodgeCausedFatigue = fatigued && stamina === 0;
     const generation = ++dodgeGeneration;
     const visualGeneration = ++dodgeVisualGeneration;
     const motion = dodgeMotions[direction];
@@ -1139,6 +1365,7 @@ function startDodge(direction) {
                 dodgeTimer = null;
                 showCurrentState();
                 actionInProgress = false;
+                syncEatingVisual();
             }, dodgeDurations.recovery);
         }, dodgeDurations.pose);
     }, dodgeDurations.start);
@@ -1159,22 +1386,32 @@ function cancelDodge() {
 }
 
 function startCpuDodge(direction) {
-    if (matchState.finished || struggleState.active || cpuState.fatigued || cpuState.stamina < 1 ||
+    if (matchState.finished || struggleState.active || cpuState.fatigued || cpuState.stamina < dodgeStaminaCost ||
         (cpuState.mode !== "normal" && cpuState.mode !== "eating") || !cpuImages.dodge[direction]) return;
     updateCpuStaminaRecovery();
+    stopCpuPose();
     cpuState.mode = "dodging";
     cpuState.dodgeDirection = direction;
     cpuState.dodgeStartedAt = performance.now();
-    changeCpuStamina(-1);
+    cpuState.dodgeRefunded = false;
+    changeCpuStamina(-dodgeStaminaCost);
+    cpuState.dodgeCausedFatigue = cpuState.fatigued && cpuState.stamina === 0;
     const generation = ++cpuState.dodgeGeneration;
+    const motion = makeCpuMotion("dodge", direction, dodgeDurations.start, dodgeDurations.recovery);
+    motion.windupHold = dodgeTiming.hold;
+    const isVisualCurrent = () => generation === cpuState.dodgeGeneration && !matchState.finished;
+    animateMotionVisual(motion, false, generation, isVisualCurrent, cpuVisual);
     setTimeout(() => {
         if (generation !== cpuState.dodgeGeneration) return;
+        clearMotionVisual(cpuVisual);
         cpu.src = cpuImages.dodge[direction];
         setTimeout(() => {
             if (generation !== cpuState.dodgeGeneration) return;
             showCpuCurrentState();
+            animateMotionVisual(motion, true, generation, isVisualCurrent, cpuVisual);
             setTimeout(() => {
                 if (generation !== cpuState.dodgeGeneration) return;
+                clearMotionVisual(cpuVisual);
                 cpuState.mode = cpuState.fatigued ? "fatigued" :
                     carrotState.holder === "cpu" ? "eating" : "normal";
                 cpuState.dodgeDirection = null;
@@ -1188,6 +1425,32 @@ function registerCpuDodge(attackDirection) {
     return cpuState.mode === "dodging" &&
         performance.now() - cpuState.dodgeStartedAt < dodgeDurations.start + dodgeDurations.pose &&
         dodgeDirectionForAttack[attackDirection] === cpuState.dodgeDirection;
+}
+
+function refundCpuDodge() {
+    if (cpuState.dodgeRefunded) return;
+    cpuState.dodgeRefunded = true;
+    if (cpuState.dodgeCausedFatigue && cpuState.fatigued) {
+        clearTimeout(cpuState.fatigueTimer);
+        cpuState.fatigueTimer = null;
+        cpuState.fatigued = false;
+        cpuState.lastStaminaUpdate = performance.now();
+    }
+    cpuState.dodgeCausedFatigue = false;
+    setCpuStamina(cpuState.stamina + dodgeStaminaCost, false);
+}
+
+function refundPlayerDodge() {
+    if (dodgeRefunded) return;
+    dodgeRefunded = true;
+    if (dodgeCausedFatigue && fatigued) {
+        clearTimeout(fatigueTimer);
+        fatigueTimer = null;
+        fatigued = false;
+        lastStaminaUpdate = performance.now();
+    }
+    dodgeCausedFatigue = false;
+    setStamina(stamina + dodgeStaminaCost, false);
 }
 
 function registerSuccessfulDodge(attackDirection) {
@@ -1346,14 +1609,154 @@ function finishStruggle(generation) {
     startMatchClock();
 }
 
-function showCpuCurrentState() {
-    cpu.src = cpuState.mode === "sleeping" ? cpuImages.sleep :
-        cpuState.mode === "sittingEating" ? cpuImages.sit : cpuNormalImage;
-    updateCarrotDisplay();
+function stopCpuPose() {
+    if (cpuPose.frame !== null) cancelAnimationFrame(cpuPose.frame);
+    cpuPose.frame = null;
+    cpuPose.generation += 1;
+    cpuPose.kind = null;
+    cpu.style.transform = "";
+    cpu.style.transformOrigin = "";
 }
 
+function runCpuPose(kind, draw) {
+    stopCpuPose();
+    cpuPose.kind = kind;
+    const generation = cpuPose.generation;
+    const started = performance.now();
+    const render = (now) => {
+        if (generation !== cpuPose.generation || matchState.finished) return;
+        if (draw(now - started)) cpuPose.frame = requestAnimationFrame(render);
+        else { cpuPose.frame = null; cpuPose.kind = null; }
+    };
+    cpuPose.frame = requestAnimationFrame(render);
+}
+
+function applyCpuPoseTransform(element, motion, adjustment, progress) {
+    element.style.transformOrigin = `${adjustment.originX}% ${adjustment.originY}%`;
+    element.style.transform = `translateY(${motion.moveDown * progress}cqh) rotate(${motion.rotation * adjustment.direction * progress}deg) scaleY(${1 + (motion.scaleY - 1) * progress})`;
+}
+
+function playCpuTransition(kind, initial, target, motion, onComplete = () => {}, reverse = false) {
+    cpu.src = initial;
+    const adjustment = cpuPoseAdjustments[stageIndex];
+    runCpuPose(kind, (elapsed) => {
+        const t = Math.min(1, elapsed / motion.duration);
+        const smooth = t * t * (3 - 2 * t);
+        const p = reverse ? 1 - smooth : smooth;
+        applyCpuPoseTransform(cpu, motion, adjustment, p);
+        if (t < 1) return true;
+        cpu.style.transform = "";
+        cpu.style.transformOrigin = "";
+        cpu.src = target;
+        queueMicrotask(() => { if (cpuPose.generation === generation && cpuPose.kind === null && !matchState.finished) onComplete(); });
+        return false;
+    });
+    const generation = cpuPose.generation;
+}
+
+function startCpuLoop(kind) {
+    if (cpuPose.kind === kind || cpuHitEffectTimer !== null) return;
+    runCpuPose(kind, (elapsed) => {
+        if (kind === "sleep") {
+            if (cpuState.mode !== "sleeping") { stopCpuPose(); return false; }
+            const p = (1 - Math.cos(elapsed * 2 * Math.PI / sleepingMotion.breathPeriod)) / 2;
+            const adjustment = cpuPoseAdjustments[stageIndex];
+            cpu.style.transformOrigin = `${adjustment.originX}% ${adjustment.originY}%`;
+            cpu.style.transform = `translateY(${-sleepingMotion.breathMoveY * p}px) rotate(${sleepingMotion.breathRotation * adjustment.direction * p}deg) scaleY(${1 + sleepingMotion.breathScaleY * p})`;
+        }
+        return true;
+    });
+}
+
+function startCpuSitVisual() {
+    const mode = cpuState.mode;
+    const initial = mode === "sittingEating" ? cpuImages.eat.standing : cpuNormalImage;
+    playCpuTransition("sit", initial, cpuImages.sit, sittingMotion, () => {
+        if (cpuState.mode !== mode || cpuHitEffectTimer !== null) return;
+        if (mode === "sleeping") playCpuTransition("sleep-transition", cpuImages.sit, cpuImages.sleep, sleepingMotion, () => startCpuLoop("sleep"));
+        else showCpuCurrentState();
+    });
+}
+
+function playCpuRoarVisual() {
+    playCpuTransition("roar-rise", cpuNormalImage, cpuImages.roar, roarMotion, () => {
+        runCpuPose("roar-hold", (elapsed) => {
+            if (elapsed >= roarMotion.hold) {
+                queueMicrotask(() => { if (roarState.phase === "effect" && roarState.attacker === "cpu") playCpuTransition("roar-return", cpuNormalImage, cpuNormalImage, roarMotion, () => {}, true); });
+                return false;
+            }
+            cpu.style.transform = `translateX(${Math.sin(elapsed * 2 * Math.PI / roarMotion.shakePeriod) * roarMotion.shakePx}px)`;
+            return true;
+        });
+    });
+}
+
+function showCpuCurrentState() {
+    if (cpuPose.kind && (cpuState.mode === "sleeping" || cpuState.mode === "sittingEating" || cpuState.mode === "eating") && cpuHitEffectTimer === null) { updateCarrotDisplay(); return; }
+    cpu.src = cpuState.mode === "sleeping" ? cpuImages.sleep :
+        cpuState.mode === "sittingEating" ? cpuImages.eat.sitting :
+        cpuState.mode === "eating" ? cpuImages.eat.standing : cpuNormalImage;
+    updateCarrotDisplay();
+    if (!matchState.finished && cpuHitEffectTimer === null && !cpuState.fatigued && !cpuState.roarStunned && !cpuState.counterStunned) {
+        if (cpuState.mode === "sleeping") startCpuLoop("sleep");
+    }
+}
+
+// コンソールから呼ぶ表示専用プレビュー。ゲーム状態やAIには触れない。
+window.debugStopCpuMotion = () => {
+    if (window.debugCpuMotionFrame != null) cancelAnimationFrame(window.debugCpuMotionFrame);
+    window.debugCpuMotionFrame = null;
+    document.getElementById("debug-cpu-motion")?.remove();
+};
+window.debugCpuMotion = (character, action) => {
+    const index = Number(character) - 1;
+    const assets = [
+        { folder: "1_Normal", stand: "Stand_enemy.png", sit: "Sit_1.png", sleep: "Sleep1_enemy.png", pickup: "Pick up_1.png", roar: "Roar_1.png", eat: "Eat_1.png" },
+        { folder: "2_Army", stand: "Stand_enemy2.png", sit: "Sit_enemy2.png", sleep: "Sleep_enemy2.png", pickup: "Pick up_enemy2.png", roar: "Roar_enemy2.png", eat: "Eat_1_enemy2.png" },
+        { folder: "3_Champion", stand: "Stand_enemy3.png", sit: "Sit_enemy3.png", sleep: "Sleep_enemy3.png", pickup: "Pick up_enemy3.png", roar: "Roar_enemy3.png", eat: "Eat_1_enemy3.png" },
+    ][index];
+    if (!assets || !["sit", "pickup", "roar", "sleep", "eat"].includes(action)) throw new Error("debugCpuMotion(1〜3, 'sit'|'pickup'|'roar'|'sleep'|'eat')");
+    window.debugStopCpuMotion();
+    const overlay = document.createElement("div");
+    overlay.id = "debug-cpu-motion";
+    Object.assign(overlay.style, { position: "absolute", inset: "0", zIndex: "80", background: "rgba(0,0,0,.65)", pointerEvents: "none" });
+    const img = document.createElement("img");
+    Object.assign(img.style, { position: "absolute", inset: "0", width: "100%", height: "100%" });
+    overlay.appendChild(img);
+    gameScreen.appendChild(overlay);
+    const file = (folder, name) => `assets/characters/cpu/${assets.folder}/${folder}/${name}`;
+    const paths = { stand: file("stand", assets.stand), sit: file("sit", assets.sit), pickup: file("pick up", assets.pickup), roar: file("roar", assets.roar), sleep: file("sleep", assets.sleep), eat: file("eat", assets.eat) };
+    const started = performance.now();
+    const render = (now) => {
+        const elapsed = now - started;
+        const progress = (t) => { const n = Math.max(0, Math.min(1, t)); return n * n * (3 - 2 * n); };
+        let image = paths.stand;
+        img.style.transform = "";
+        if (action === "sit" || action === "pickup") {
+            const motion = action === "sit" ? sittingMotion : pickupMotion;
+            if (elapsed < motion.duration) applyCpuPoseTransform(img, motion, cpuPoseAdjustments[index], progress(elapsed / motion.duration));
+            else image = paths[action];
+        } else if (action === "sleep") {
+            if (elapsed < sittingMotion.duration) applyCpuPoseTransform(img, sittingMotion, cpuPoseAdjustments[index], progress(elapsed / sittingMotion.duration));
+            else if (elapsed < sittingMotion.duration + sleepingMotion.duration) { image = paths.sit; applyCpuPoseTransform(img, sleepingMotion, cpuPoseAdjustments[index], progress((elapsed - sittingMotion.duration) / sleepingMotion.duration)); }
+            else { image = paths.sleep; const p = (1 - Math.cos((elapsed - 600) * 2 * Math.PI / sleepingMotion.breathPeriod)) / 2; img.style.transformOrigin = `${cpuPoseAdjustments[index].originX}% ${cpuPoseAdjustments[index].originY}%`; img.style.transform = `translateY(${-sleepingMotion.breathMoveY * p}px) rotate(${sleepingMotion.breathRotation * cpuPoseAdjustments[index].direction * p}deg) scaleY(${1 + sleepingMotion.breathScaleY * p})`; }
+        } else if (action === "roar") {
+            const cycle = elapsed % roarDuration;
+            if (cycle < roarMotion.duration) applyCpuPoseTransform(img, roarMotion, cpuPoseAdjustments[index], progress(cycle / roarMotion.duration));
+            else if (cycle < roarMotion.duration + roarMotion.hold) { image = paths.roar; img.style.transform = `translateX(${Math.sin((cycle - roarMotion.duration) * 2 * Math.PI / roarMotion.shakePeriod) * roarMotion.shakePx}px)`; }
+            else applyCpuPoseTransform(img, roarMotion, cpuPoseAdjustments[index], 1 - progress((cycle - roarMotion.duration - roarMotion.hold) / roarMotion.duration));
+        } else { image = paths.eat; }
+        if (img.getAttribute("src") !== image) img.src = image;
+        window.debugCpuMotionFrame = requestAnimationFrame(render);
+    };
+    window.debugCpuMotionFrame = requestAnimationFrame(render);
+    return "プレビュー終了: debugStopCpuMotion()";
+};
+
 function setCpuStamina(value, triggerFatigue = true) {
+    const previous = cpuState.stamina;
     cpuState.stamina = Math.max(0, Math.min(maxStamina, value));
+    if (previous > 0 && cpuState.stamina === 0) playStaminaEffect("cpu");
     cpuStaminaFill.style.width = `${cpuState.stamina / maxStamina * 100}%`;
     cpuStaminaTrack.setAttribute("aria-label", `スタミナ ${cpuState.stamina}/${maxStamina}`);
     if (cpuState.stamina === maxStamina) {
@@ -1420,6 +1823,7 @@ function enterCpuFatigue() {
 
 function cancelCpuPickup() {
     if (cpuState.mode !== "picking") return;
+    stopCpuPose();
     releaseOpeningClaim("cpu");
     clearTimeout(cpuState.pickupTimer);
     cpuState.pickupGeneration += 1;
@@ -1441,11 +1845,12 @@ function tryStartCpuPickup() {
         return;
     }
     cpuState.mode = "picking";
-    cpu.src = cpuImages.pickup;
+    playCpuTransition("pickup", cpuNormalImage, cpuImages.pickup, pickupMotion);
     const generation = ++cpuState.pickupGeneration;
     cpuState.pickupTimer = setTimeout(() => {
         if (generation !== cpuState.pickupGeneration) return;
         cpuState.pickupTimer = null;
+        stopCpuPose();
         cpuState.mode = "normal";
         if (carrotState.holder === "ground" && !cpuState.fatigued) setCarrotHolder("cpu");
         releaseOpeningClaim("cpu");
@@ -1459,11 +1864,13 @@ function startCpuStandUp() {
     updateEatingProgress();
     if (matchState.finished) return;
     updateCpuStaminaRecovery();
+    stopCpuPose();
     cpuState.mode = "standingUp";
-    cpu.src = cpuNormalImage;
+    playCpuTransition("stand-up", cpuNormalImage, cpuNormalImage, { ...sittingMotion, duration: standUpDuration }, () => {}, true);
     const generation = ++cpuState.standUpGeneration;
     setTimeout(() => {
         if (generation !== cpuState.standUpGeneration) return;
+        stopCpuPose();
         cpuState.mode = cpuState.fatigued ? "fatigued" :
             carrotState.holder === "cpu" ? "eating" : "normal";
         cpuState.sleepHitCount = 0;
@@ -1472,27 +1879,36 @@ function startCpuStandUp() {
 }
 
 function startCpuPunch(direction) {
-    if (matchState.finished || struggleState.active || cpuState.mode !== "normal" || cpuState.fatigued || cpuState.stamina < 1 ||
+    if (matchState.finished || struggleState.active || cpuState.mode !== "normal" || cpuState.fatigued || cpuState.stamina < punchStaminaCost ||
         carrotState.holder === "cpu") return;
     updateCpuStaminaRecovery();
+    stopCpuPose();
     cpuState.mode = "punching";
     changeCpuStamina(-punchStaminaCost);
     const generation = ++cpuState.punchGeneration;
+    const timing = punchTimings[direction];
+    const motion = makeCpuMotion("punch", direction, timing.windup, timing.recovery);
+    motion.windupHold = timing.hold;
+    const isVisualCurrent = () => generation === cpuState.punchGeneration && !matchState.finished;
     cpu.src = cpuNormalImage;
+    animateMotionVisual(motion, false, generation, isVisualCurrent, cpuVisual);
     setTimeout(() => {
         if (generation !== cpuState.punchGeneration) return;
+        clearMotionVisual(cpuVisual);
         cpu.src = cpuImages.punch[direction];
         resolveCpuPunchHit(generation, direction);
         setTimeout(() => {
             if (generation !== cpuState.punchGeneration) return;
             cpu.src = cpuNormalImage;
+            animateMotionVisual(motion, true, generation, isVisualCurrent, cpuVisual);
             setTimeout(() => {
                 if (generation !== cpuState.punchGeneration) return;
+                clearMotionVisual(cpuVisual);
                 cpuState.mode = cpuState.fatigued ? "fatigued" : "normal";
                 showCpuCurrentState();
-            }, punchDurations.recovery);
-        }, punchDurations.contact);
-    }, punchDurations.windup);
+            }, timing.recovery);
+        }, timing.contact);
+    }, timing.windup);
 }
 
 function resolveCpuPunchHit(punchId, direction) {
@@ -1539,13 +1955,13 @@ function cpuBrainTick() {
             if (matchState.finished) return;
             cpuState.mode = "sittingEating";
             cpuState.sitUntil = performance.now() + cpuRandomBetween(cpuAi.sitMin, cpuAi.sitMax);
-            showCpuCurrentState();
+            startCpuSitVisual();
         }
     } else if (carrotState.holder === "player" || (carrotState.holder === "ground" && openingState.active)) {
         if (cpuState.stamina <= cpuAi.sleepThreshold) {
             cpuState.mode = "sleeping";
             cpuState.sleepHitCount = 0;
-            showCpuCurrentState();
+            startCpuSitVisual();
         } else {
             startCpuPunch(Math.random() < 0.5 ? "left" : "right");
         }
@@ -1575,8 +1991,7 @@ function cancelPickup() {
     if (!pickupInProgress) return;
     releaseOpeningClaim("player");
     clearTimeout(pickupTimer);
-    clearTimeout(pickupVisualTimer);
-    pickupVisualTimer = null;
+    cancelPoseVisual();
     pickupGeneration += 1;
     pickupTimer = null;
     pickupInProgress = false;
@@ -1601,17 +2016,11 @@ function tryStartPickup() {
     }
     actionInProgress = true;
     pickupInProgress = true;
-    cancelPoseVisual();
     const generation = ++pickupGeneration;
-    playPlayerFrameSequence(pickupFrames,
-        () => generation === pickupGeneration && !matchState.finished,
-        timer => { pickupVisualTimer = timer; },
-        () => {},
-        () => { pickupVisualTimer = null; });
+    playInterpolatedPose(pickupMotion, normalImage, () => showPlayerImage(pickupImage));
     pickupTimer = setTimeout(() => {
         if (generation !== pickupGeneration) return;
-        clearTimeout(pickupVisualTimer);
-        pickupVisualTimer = null;
+        cancelPoseVisual();
         pickupGeneration += 1;
         pickupTimer = null;
         pickupInProgress = false;
@@ -1631,7 +2040,10 @@ function playPlayerFrameSequence(frames, isCurrent, setTimer, onFrame, onComplet
     const showFrame = () => {
         if (!isCurrent()) return;
         const frame = frames[index];
-        showPlayerImage(frame.image, frame.compactPose ?? false, frame.fullFrame ?? false);
+        const image = standingUp && playerState.hasCarrot
+            ? (frame.image === normalImage ? eatingImages.standing : eatingImages.sitting)
+            : frame.image;
+        showPlayerImage(image, frame.compactPose ?? false, frame.fullFrame ?? false);
         onFrame(index);
         if (!isCurrent()) return;
         setTimer(setTimeout(() => {
@@ -1644,28 +2056,74 @@ function playPlayerFrameSequence(frames, isCurrent, setTimer, onFrame, onComplet
     showFrame();
 }
 
-// 判定用のタイマーとは独立した、透過PNGの複製表示。
-function clearMotionVisual() {
-    if (motionVisualFrame !== null) cancelAnimationFrame(motionVisualFrame);
-    motionVisualFrame = null;
-    motionVisualGeneration += 1;
-    for (const image of motionVisualLayers) image.remove();
-    motionVisualLayers = [];
-    gameScreen.classList.remove("has-motion-ghosts");
+// 透過部分を除いた範囲の中心を使い、共通フレーム内の両姿勢の間を移動する。
+function imageCenter(src) {
+    return new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = image.naturalWidth;
+                canvas.height = image.naturalHeight;
+                const context = canvas.getContext("2d", { willReadFrequently: true });
+                context.drawImage(image, 0, 0);
+                const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+                let minX = canvas.width, maxX = -1, minY = canvas.height, maxY = -1;
+                for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+                    if (pixels[(y * canvas.width + x) * 4 + 3] > 32) {
+                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                    }
+                }
+                resolve(maxX < 0 ? null : { x: (minX + maxX) / 2 / canvas.width * 100, y: (minY + maxY) / 2 / canvas.height * 100 });
+            } catch (error) { resolve(null); }
+        };
+        image.onerror = () => resolve(null);
+        image.src = src;
+    });
 }
 
-function renderMotionVisual(config, progress) {
+function prepareCpuMotionImages(images) {
+    const stand = imageCenter(images.stand);
+    for (const action of ["punch", "dodge"]) for (const direction of ["left", "right"]) {
+        const target = images[action][direction];
+        Promise.all([stand, imageCenter(target)]).then(([from, to]) => {
+            if (from && to) cpuMotionOffsets.set(images.stand + "|" + target, { x: to.x - from.x, y: to.y - from.y });
+        });
+    }
+}
+
+function makeCpuMotion(action, direction, windup, recovery) {
+    const images = cpuImages.afterimage;
+    const target = images[action][direction];
+    return { windup, recovery, cpuMotion: cpuMotionOffsets.get(images.stand + "|" + target) || { x: 0, y: 0 }, layers: [
+        { image: images.stand, copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: 0, offsetY: 0 },
+        { image: target, copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0, offsetY: 0 },
+    ] };
+}
+
+// 判定用のタイマーとは独立した、透過PNGの複製表示。
+function clearMotionVisual(visual = playerVisual) {
+    if (visual.frame !== null) cancelAnimationFrame(visual.frame);
+    visual.frame = null;
+    visual.generation += 1;
+    for (const image of visual.layers) image.remove();
+    visual.layers = [];
+    gameScreen.classList.remove(visual.className);
+}
+
+function renderMotionVisual(config, progress, visual = playerVisual) {
     progress = Math.max(0, Math.min(1, progress));
-    if (!motionVisualLayers.length) {
+    if (!visual.layers.length) {
         for (const layer of config.layers) {
             for (let copy = 0; copy < layer.copies; copy += 1) {
                 const image = document.createElement("img");
-                image.className = "motion-ghost";
+                image.className = visual === cpuVisual ? "motion-ghost cpu-motion-ghost" : "motion-ghost";
                 image.src = layer.image;
                 image.alt = "";
                 image.setAttribute("aria-hidden", "true");
                 gameScreen.appendChild(image);
-                motionVisualLayers.push(image);
+                visual.layers.push(image);
             }
         }
     }
@@ -1677,36 +2135,42 @@ function renderMotionVisual(config, progress) {
         const eased = position * position * (3 - 2 * position);
         const intensity = layer.fade === "in" ? eased : 1 - eased;
         for (let copy = 0; copy < layer.copies; copy += 1) {
-            const image = motionVisualLayers[index++];
+            const image = visual.layers[index++];
             image.style.opacity = String(layer.opacity * intensity * (1 - copy / layer.copies));
             let x = layer.offsetX * copy * intensity;
             let y = layer.offsetY * copy * intensity;
+            if (config.cpuMotion) {
+                const delta = config.cpuMotion;
+                const t = Math.max(0, Math.min(1, progress - copy / layer.copies * 0.2));
+                x = delta.x * (layer.fade === "in" ? t - 1 : t);
+                y = delta.y * (layer.fade === "in" ? t - 1 : t);
+            }
             image.style.transform = `translate(${x}cqw, ${y}cqh)`;
         }
     }
-    gameScreen.classList.add("has-motion-ghosts");
+    gameScreen.classList.add(visual.className);
 }
 
-function animateMotionVisual(config, reverse, generation, isCurrent = () => generation === punchGeneration) {
-    clearMotionVisual();
+function animateMotionVisual(config, reverse, generation, isCurrent = () => generation === punchGeneration, visual = playerVisual) {
+    clearMotionVisual(visual);
     const hold = reverse ? 0 : (config.windupHold ?? 0);
     const duration = reverse ? config.recovery : config.windup - hold;
-    const visualGeneration = motionVisualGeneration;
+    const visualGeneration = visual.generation;
     const startedAt = performance.now();
     const renderFrame = (now) => {
-        if (visualGeneration !== motionVisualGeneration || !isCurrent() || matchState.finished) return;
+        if (visualGeneration !== visual.generation || !isCurrent() || matchState.finished) return;
         const elapsed = now - startedAt;
         if (elapsed < hold) {
-            motionVisualFrame = requestAnimationFrame(renderFrame);
+            visual.frame = requestAnimationFrame(renderFrame);
             return;
         }
         const fraction = Math.max(0, Math.min(1, (elapsed - hold) / duration));
         const progress = reverse ? 1 - fraction : fraction;
-        renderMotionVisual(config, progress);
-        motionVisualFrame = fraction < 1 ? requestAnimationFrame(renderFrame) : null;
+        renderMotionVisual(config, progress, visual);
+        visual.frame = fraction < 1 ? requestAnimationFrame(renderFrame) : null;
     };
-    if (hold === 0) renderMotionVisual(config, reverse ? 1 : 0);
-    motionVisualFrame = requestAnimationFrame(renderFrame);
+    if (hold === 0) renderMotionVisual(config, reverse ? 1 : 0, visual);
+    visual.frame = requestAnimationFrame(renderFrame);
 }
 
 function startPunch(button) {
@@ -1751,6 +2215,8 @@ function startPunch(button) {
 }
 
 function cancelCpuActionForRoar() {
+    stopCpuPose();
+    clearMotionVisual(cpuVisual);
     if (cpuState.mode === "picking") cancelCpuPickup();
     cpuState.punchGeneration += 1;
     cpuState.dodgeGeneration += 1;
@@ -1862,6 +2328,7 @@ function finishRoarEffect(generation, target) {
         playerState.mode = playerState.hasCarrot ? "eating" : "normal";
         showCurrentState();
     } else {
+        stopCpuPose();
         cpuState.mode = cpuState.fatigued ? "fatigued" :
             carrotState.holder === "cpu" ? "eating" : "normal";
         showCpuCurrentState();
@@ -1880,8 +2347,8 @@ function resolveRoarWarning(generation) {
     clearRoarWarning();
     roarState.phase = "effect";
     applyRoarToTarget(target);
-    if (attacker === "player") playPoseVisual(roarFrames);
-    else cpu.src = cpuImages.roar;
+    if (attacker === "player") playRoarVisual();
+    else playCpuRoarVisual();
     roarState.effectTimer = setTimeout(() => finishRoarEffect(generation, target), roarDuration);
 }
 
@@ -1934,7 +2401,7 @@ function playRoar() { return beginRoar("player"); }
 function waitForEatingRoar(button) {
     clearPendingRoar();
     pendingRoar = { button, startedAt: performance.now() };
-    pendingRoarTimer = setTimeout(clearPendingRoar, punchDurations.windup);
+    pendingRoarTimer = setTimeout(clearPendingRoar, roarInputWindow);
 }
 
 function clearTwoPlayerInput() {
@@ -1954,7 +2421,7 @@ function startTwoPlayerSit() {
         updateCpuStaminaRecovery();
         cpuState.mode = carrotState.holder === "cpu" ? "sittingEating" : "sleeping";
         cpuState.sleepHitCount = 0;
-        showCpuCurrentState();
+        startCpuSitVisual();
     }
 }
 
@@ -1993,6 +2460,7 @@ window.addEventListener("keydown", (event) => {
         // 両押しになった時点で振り出し中のパンチを中断し、長押し判定へ移る。
         if (cpuState.mode === "punching") {
             cpuState.punchGeneration += 1;
+            clearMotionVisual(cpuVisual);
             cpuState.mode = cpuState.fatigued ? "fatigued" : "normal";
             showCpuCurrentState();
         }
@@ -2039,7 +2507,7 @@ gameScreen.addEventListener("mousedown", (event) => {
     pressedPunchButtons.add(event.button);
     if (roarInProgress || playerRoarStunned || playerCounterStunned) return;
     if (pendingRoar && pendingRoar.button !== event.button &&
-        performance.now() - pendingRoar.startedAt <= punchDurations.windup) {
+        performance.now() - pendingRoar.startedAt <= roarInputWindow) {
         if (playRoar()) return;
         clearPendingRoar();
     }

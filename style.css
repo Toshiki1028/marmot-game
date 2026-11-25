@@ -163,6 +163,7 @@ body {
     transform: rotate(0deg) scaleY(1.5);
     transform-origin: center top;
     z-index: 3;
+    visibility: hidden;
 }
 
 #carrot[data-holder="player"].is-player-action-hidden {
@@ -180,6 +181,7 @@ body {
     top: 32cqh;
     transform: rotate(0deg);
     z-index: 5;
+    visibility: hidden;
 }
 
 #carrot[data-holder="cpu"][data-pose="sitting"] {
@@ -194,6 +196,36 @@ body {
     z-index: 4;
 }
 
+.stamina-empty-effect[hidden] { display: none; }
+.stamina-empty-effect {
+    position: absolute;
+    width: 20cqw;
+    height: auto;
+    z-index: 15;
+    pointer-events: none;
+    transform: translate(-50%, 0);
+}
+
+.sleep-bubble-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+.sleep-bubble-layer img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* eat1_1P.png の透明領域に含まれる不透明な100×100pxの矩形を表示しない。 */
+#player[src="assets/characters/player/eat/eat1_1P.png"] {
+    mask-image: linear-gradient(to right, #000 0 71.9792%, transparent 71.9792% 77.1875%, #000 77.1875%),
+                linear-gradient(to bottom, #000 0 48.4259%, transparent 48.4259% 57.6852%, #000 57.6852%);
+    mask-composite: add;
+}
+
 #player.is-full-frame {
     width: 100cqw;
     height: 100cqh;
@@ -201,7 +233,8 @@ body {
     top: 0;
 }
 
-#game-screen.has-motion-ghosts #player { visibility: hidden; }
+#game-screen.has-motion-ghosts #player,
+#game-screen.has-cpu-motion-ghosts #cpu { visibility: hidden; }
 .motion-ghost {
     position: absolute;
     inset: 0;
@@ -210,6 +243,8 @@ body {
     z-index: 4;
     pointer-events: none;
 }
+
+.cpu-motion-ghost { z-index: 2; }
 
 #battle-ui {
     --gauge-icon-size: 4.63cqh;
@@ -328,8 +363,9 @@ body {
 
 .carrot-gauge-track {
     position: relative;
-    overflow: hidden;
-    background: #fff;
+    overflow: visible;
+    background: rgba(25, 30, 38, 0.65);
+    border: 0.12cqh solid rgba(220, 225, 230, 0.7);
 }
 
 .carrot-gauge-player,
@@ -357,12 +393,12 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 2.2cqh;
-    height: 2.2cqh;
-    border: 0.25cqh solid #493a2e;
-    border-radius: 50%;
-    background: #fff;
-    transform: translate(-50%, -50%);
+    width: auto;
+    height: 9.5cqh;
+    object-fit: contain;
+    transform: translate(-50.8%, -48.2%);
+    z-index: 2;
+    pointer-events: none;
 }
 
 #finish-label {
