@@ -44,6 +44,7 @@ const struggleTime = document.getElementById("struggle-time");
 const strugglePlayerScore = document.getElementById("struggle-player-score");
 const struggleCpuScore = document.getElementById("struggle-cpu-score");
 const struggleFeedback = document.getElementById("struggle-feedback");
+const struggleTwoPlayerFeedback = document.getElementById("struggle-2p-feedback");
 const struggleInstruction = document.getElementById("struggle-instruction");
 const struggleOpponentLabel = document.getElementById("struggle-opponent-label");
 const normalImage = player.getAttribute("src");
@@ -52,41 +53,67 @@ const punchImages = {
     0: "assets/characters/player/punch/パンチ_プレイヤー_左.png",
     2: "assets/characters/player/punch/パンチ_プレイヤー_右.png",
 };
-const leftPunchFrames = [
-    { image: normalImage, duration: 60 },
-    { image: "assets/characters/player/punch/パンチ_プレイヤー_左_残像_前1.png", duration: 60, fullFrame: true },
-    { image: "assets/characters/player/punch/パンチ_プレイヤー_左_残像_前2.png", duration: 60, fullFrame: true },
-    { image: punchImages[0], duration: 100 },
-    { image: "assets/characters/player/プレイヤー_左右_残像_後1.png", duration: 85, fullFrame: true },
-    { image: "assets/characters/player/プレイヤー_左右_残像_後2.png", duration: 85, fullFrame: true },
-];
-// 右パンチは既存の 180ms / 100ms / 170ms を保ったまま残像を挟む。
-const rightPunchFrames = [
-    { image: normalImage, duration: 60 },
-    { image: "assets/characters/player/punch/パンチ_プレイヤー_右_残像_前1.png", duration: 60, fullFrame: true },
-    { image: "assets/characters/player/punch/パンチ_プレイヤー_右_残像_前2.png", duration: 60, fullFrame: true },
-    { image: punchImages[2], duration: 100 },
-    { image: "assets/characters/player/プレイヤー_左右_残像_後1.png", duration: 85, fullFrame: true },
-    { image: "assets/characters/player/プレイヤー_左右_残像_後2.png", duration: 85, fullFrame: true },
-];
+// 全画面PNGの位置は画面に対する割合（cqw / cqh）。コピー数や移動幅も調整できる。
+const rightPunchMotion = {
+    windup: 300, windupHold: 140, contact: 100, recovery: 120,
+    layers: [
+        { image: "assets/characters/player/Stand_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7, offsetY: 0 },
+        { image: "assets/characters/player/punch/Punch_Right_1P_残像.png", copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7, offsetY: 0 },
+    ],
+};
+function makeMotionConfig(image, direction, windup, windupHold, contact, recovery) {
+    return {
+        windup, windupHold, contact, recovery,
+        layers: [
+            { image: "assets/characters/player/Stand_1P.png", copies: 3, opacity: 0.5, fade: "out", fadeStart: 0, fadeEnd: 0.375, offsetX: -0.7 * direction, offsetY: 0 },
+            { image, copies: 3, opacity: 0.5, fade: "in", fadeStart: 0.25, fadeEnd: 1, offsetX: 0.7 * direction, offsetY: 0 },
+        ],
+    };
+}
+const leftPunchMotion = makeMotionConfig("assets/characters/player/punch/Punch_Left_1P.png", -1, 180, 84, 100, 170);
 const dodgeImages = {
     left: "assets/characters/player/dodge/回避_プレイヤー_左.png",
     right: "assets/characters/player/dodge/回避_プレイヤー_右.png",
 };
-const dodgeFrames = {
-    left: {
-        start: { image: normalImage, compactPose: false },
-        pose: { image: dodgeImages.left, compactPose: true },
-        recovery: { image: normalImage, compactPose: false },
-    },
-    right: {
-        start: { image: normalImage, compactPose: false },
-        pose: { image: dodgeImages.right, compactPose: true },
-        recovery: { image: normalImage, compactPose: false },
-    },
+const dodgeMotions = {
+    left: makeMotionConfig("assets/characters/player/dodge/Dodge_Left_1P.png", -1, 80, 35, 140, 120),
+    right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_1P.png", 1, 80, 35, 140, 120),
 };
+// 1920×1080の基準画面上での画像左上座標。
+dodgeMotions.left.endPosition = { x: 35, y: 362 };
+dodgeMotions.right.endPosition = { x: 216, y: 321 };
+// 不透明部分の中心。全画面の残像と縦長の到達姿勢の透明余白を合わせる。
+dodgeMotions.left.anchors = { stand: { x: 715, y: 682.5 }, ghost: { x: 622.5, y: 700 }, pose: { x: 534, y: 734 } };
+dodgeMotions.right.anchors = { stand: { x: 715, y: 682.5 }, ghost: { x: 799, y: 701 }, pose: { x: 552, y: 734 } };
 const roarImage = "assets/characters/player/roar/咆哮_プレイヤー.png";
+const sitAfterimage1 = "assets/characters/player/sit/座る_プレイヤー_残像1_.png";
+const sitAfterimage2 = "assets/characters/player/sit/座る_プレイヤー_残像2.png";
+const roarAfterimage1 = "assets/characters/player/roar/咆哮_プレイヤー_残像1.png";
+const roarAfterimage2 = "assets/characters/player/roar/咆哮_プレイヤー_残像2.png";
+const sittingFrames = [
+    { image: sitAfterimage1, duration: 80, fullFrame: true },
+    { image: sitAfterimage2, duration: 80, fullFrame: true },
+];
+const standingFrames = [
+    { image: sittingImage, duration: 50, compactPose: true },
+    { image: sitAfterimage2, duration: 100, fullFrame: true },
+    { image: sitAfterimage1, duration: 100, fullFrame: true },
+];
+const roarFrames = [
+    { image: roarAfterimage1, duration: 150, fullFrame: true },
+    { image: roarAfterimage2, duration: 150, fullFrame: true },
+    { image: roarImage, duration: 400, compactPose: true },
+    { image: roarAfterimage2, duration: 150, fullFrame: true },
+    { image: roarAfterimage1, duration: 150, fullFrame: true },
+];
 const pickupImage = "assets/characters/player/pick up/拾い_プレイヤー.png";
+const pickupFrames = [
+    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_1.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_2.png", duration: 90, fullFrame: true },
+    { image: pickupImage, duration: 90, compactPose: true },
+    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_2.png", duration: 90, fullFrame: true },
+    { image: "assets/characters/player/pick up/拾う_プレイヤー_残像_1.png", duration: 90, fullFrame: true },
+];
 const roarFill = document.querySelector(".player-gauges .roar .gauge-fill");
 const staminaFill = document.querySelector(".player-gauges .stamina .gauge-fill");
 const staminaTrack = staminaFill.parentElement;
@@ -96,7 +123,6 @@ const standUpDuration = 250;
 const pickupDuration = 450;
 const firstHitDisplayDuration = 800;
 const openingHitWindow = 16;
-const standUpFrame = { image: normalImage, compactPose: false };
 // 攻撃方向と必要な回避方向の対応。CPUの攻撃判定を実装するときに利用する。
 const dodgeDirectionForAttack = { left: "left", right: "right" };
 const roarDuration = 1000;
@@ -162,18 +188,26 @@ let actionInProgress = false;
 let punchPhase = null;
 let punchTimer = null;
 let punchGeneration = 0;
+let motionVisualFrame = null;
+let motionVisualGeneration = 0;
+let motionVisualLayers = [];
 const pressedPunchButtons = new Set();
 let dodgePhase = null;
 let dodgeDirection = null;
 let dodgeStartedAt = 0;
 let dodgeTimer = null;
 let dodgeGeneration = 0;
+let dodgeVisualTimer = null;
+let dodgeVisualGeneration = 0;
 let standingUp = false;
 let standUpTimer = null;
 let standUpGeneration = 0;
+let poseVisualTimer = null;
+let poseVisualGeneration = 0;
 let pickupInProgress = false;
 let pickupTimer = null;
 let pickupGeneration = 0;
+let pickupVisualTimer = null;
 let roarInProgress = false;
 let playerRoarStunned = false;
 let playerCounterStunned = false;
@@ -449,6 +483,8 @@ function tickMatchClock() {
 }
 
 function stopBattleActions() {
+    cancelPoseVisual();
+    clearMotionVisual();
     clearTwoPlayerInput();
     clearOpeningTimers();
     clearPendingRoar();
@@ -458,6 +494,9 @@ function stopBattleActions() {
     punchGeneration += 1;
     clearTimeout(dodgeTimer);
     dodgeTimer = null;
+    clearTimeout(dodgeVisualTimer);
+    dodgeVisualTimer = null;
+    dodgeVisualGeneration += 1;
     dodgePhase = null;
     dodgeDirection = null;
     dodgeGeneration += 1;
@@ -467,6 +506,8 @@ function stopBattleActions() {
     standUpGeneration += 1;
     clearTimeout(pickupTimer);
     pickupTimer = null;
+    clearTimeout(pickupVisualTimer);
+    pickupVisualTimer = null;
     pickupInProgress = false;
     pickupGeneration += 1;
     actionInProgress = false;
@@ -631,6 +672,8 @@ function startStage(index) {
     showCurrentState();
     showCpuCurrentState();
     renderMatchClock();
+    startLabel.hidden = true;
+    void startLabel.offsetWidth; // 同じ演出を途中で再開した場合もアニメーションを先頭から再生する。
     startLabel.dataset.phase = "stage";
     startImage.src = `assets/stage/${stages[index].label}`;
     startImage.alt = stages[index].name;
@@ -827,10 +870,11 @@ setInterval(() => {
     }
 }, 100);
 
-function showPlayerImage(image, compactPose = false, fullFrame = false) {
+function showPlayerImage(image, compactPose = false, fullFrame = false, position = null) {
     player.classList.toggle("is-full-frame", fullFrame);
     player.style.width = compactPose ? "42cqw" : "";
-    player.style.left = compactPose ? "16cqw" : "";
+    player.style.left = position ? `${position.x / 1920 * 100}cqw` : compactPose ? "16cqw" : "";
+    player.style.top = position ? `${position.y / 1080 * 100}cqh` : "";
     player.src = image;
 }
 
@@ -838,6 +882,22 @@ function showCurrentState() {
     const isSitting = playerState.mode === "sleeping" || playerState.mode === "sittingEating";
     showPlayerImage(isSitting ? sittingImage : normalImage, isSitting);
     updateCarrotDisplay();
+}
+
+function cancelPoseVisual() {
+    clearTimeout(poseVisualTimer);
+    poseVisualTimer = null;
+    poseVisualGeneration += 1;
+}
+
+function playPoseVisual(frames, onComplete = () => {}) {
+    cancelPoseVisual();
+    const generation = poseVisualGeneration;
+    playPlayerFrameSequence(frames,
+        () => generation === poseVisualGeneration && !matchState.finished,
+        timer => { poseVisualTimer = timer; },
+        () => {},
+        () => { poseVisualTimer = null; onComplete(); });
 }
 
 function setCarrotHolder(holder) {
@@ -856,6 +916,7 @@ function setCarrotHolder(holder) {
     clearPendingRoar();
     if (holder === "player" && punchPhase) cancelPunch();
     const previousHolder = carrotState.holder;
+    if (previousHolder === "player" || holder === "player") cancelPoseVisual();
     carrotState.holder = holder;
     if (previousHolder === "ground" && holder !== "ground" && openingState.active) finishOpening();
     if (holder === "player") {
@@ -932,6 +993,18 @@ function receivePlayerPunchHit(attackDirection) {
         return false;
     }
     matchScore.hitsTaken += 1;
+    if (poseVisualTimer !== null) {
+        cancelPoseVisual();
+        if (standingUp) showPlayerImage(normalImage);
+        else showCurrentState();
+    }
+    if (dodgePhase !== null) {
+        clearTimeout(dodgeVisualTimer);
+        dodgeVisualTimer = null;
+        dodgeVisualGeneration += 1;
+        clearMotionVisual();
+        showCurrentState();
+    }
     if (pickupInProgress) cancelPickup();
     recordSleepHit();
     const carrotDropHits = playerState.mode === "sittingEating" && !standingUp ? 2 : 3;
@@ -968,7 +1041,8 @@ function toggleSitting() {
     if (matchState.finished) return;
     playerState.mode = playerState.hasCarrot ? "sittingEating" : "sleeping";
     playerState.sleepHitCount = 0;
-    showCurrentState();
+    updateCarrotDisplay();
+    playPoseVisual(sittingFrames, showCurrentState);
 }
 
 function playAction(image, compactPose = false, duration = roarDuration, onComplete = null) {
@@ -1001,9 +1075,10 @@ function startStandUp() {
     standingUp = true;
     const generation = ++standUpGeneration;
     updateCarrotDisplay();
-    showPlayerImage(standUpFrame.image, standUpFrame.compactPose);
+    playPoseVisual(standingFrames);
     standUpTimer = setTimeout(() => {
         if (generation !== standUpGeneration) return;
+        cancelPoseVisual();
         updateEatingProgress();
         if (matchState.finished) return;
         updateStaminaRecovery();
@@ -1017,6 +1092,7 @@ function startStandUp() {
 }
 
 function cancelStandUp() {
+    cancelPoseVisual();
     clearTimeout(standUpTimer);
     standUpGeneration += 1;
     standUpTimer = null;
@@ -1024,15 +1100,12 @@ function cancelStandUp() {
     actionInProgress = false;
 }
 
-function showDodgeFrame(frame) {
-    showPlayerImage(frame.image, frame.compactPose);
-}
-
 function startDodge(direction) {
-    if (matchState.finished || struggleState.active || actionInProgress || fatigued || playerRoarStunned || playerCounterStunned || !dodgeFrames[direction]) return;
+    if (matchState.finished || struggleState.active || actionInProgress || fatigued || playerRoarStunned || playerCounterStunned || !dodgeMotions[direction]) return;
 
     updateEatingProgress();
     if (matchState.finished) return;
+    cancelPoseVisual();
     updateStaminaRecovery();
     actionInProgress = true;
     dodgePhase = "start";
@@ -1040,17 +1113,31 @@ function startDodge(direction) {
     dodgeDirection = direction;
     dodgeStartedAt = performance.now();
     const generation = ++dodgeGeneration;
-    const frames = dodgeFrames[direction];
-    showDodgeFrame(frames.start);
-
+    const visualGeneration = ++dodgeVisualGeneration;
+    const motion = dodgeMotions[direction];
+    const isVisualCurrent = () => generation === dodgeGeneration && visualGeneration === dodgeVisualGeneration && !matchState.finished;
+    animateMotionVisual(motion, false, generation, isVisualCurrent);
+    dodgeVisualTimer = setTimeout(() => {
+        if (!isVisualCurrent()) return;
+        clearMotionVisual();
+        showPlayerImage(dodgeImages[direction], true, false, motion.endPosition);
+        dodgeVisualTimer = setTimeout(() => {
+            if (!isVisualCurrent()) return;
+            animateMotionVisual(motion, true, generation, isVisualCurrent);
+            dodgeVisualTimer = setTimeout(() => {
+                if (!isVisualCurrent()) return;
+                clearMotionVisual();
+                dodgeVisualTimer = null;
+                showCurrentState();
+            }, motion.recovery);
+        }, motion.contact);
+    }, motion.windup);
     dodgeTimer = setTimeout(() => {
         if (generation !== dodgeGeneration) return;
         dodgePhase = "pose";
-        showDodgeFrame(frames.pose);
         dodgeTimer = setTimeout(() => {
             if (generation !== dodgeGeneration) return;
             dodgePhase = "recovery";
-            showDodgeFrame(frames.recovery);
             dodgeTimer = setTimeout(() => {
                 if (generation !== dodgeGeneration) return;
                 updateEatingProgress();
@@ -1068,6 +1155,10 @@ function startDodge(direction) {
 
 function cancelDodge() {
     clearTimeout(dodgeTimer);
+    clearTimeout(dodgeVisualTimer);
+    dodgeVisualTimer = null;
+    dodgeVisualGeneration += 1;
+    clearMotionVisual();
     dodgeGeneration += 1;
     dodgeTimer = null;
     dodgePhase = null;
@@ -1206,6 +1297,7 @@ function startStruggle() {
     cancelPickup();
     cancelCpuPickup();
     clearPendingRoar();
+    clearTwoPlayerInput();
     pressedPunchButtons.clear();
     struggleState.pressedButtons.clear();
     struggleState.active = true;
@@ -1221,7 +1313,10 @@ function startStruggle() {
     cpu.src = cpuImages.pickup;
     struggleFeedback.textContent = "";
     struggleFeedback.className = "struggle-feedback";
-    struggleInstruction.textContent = gameMode === "2p" ? "1P：左右クリック　2P：D / F を交互に！" : "左右交互にクリック！";
+    struggleTwoPlayerFeedback.textContent = "";
+    struggleTwoPlayerFeedback.className = "struggle-feedback";
+    struggleTwoPlayerFeedback.hidden = gameMode !== "2p";
+    struggleInstruction.textContent = gameMode === "2p" ? "1P：左右クリック　2P：J / K を交互に！" : "左右交互にクリック！";
     struggleOpponentLabel.textContent = gameMode === "2p" ? "2P" : "CPU";
     gameScreen.classList.add("is-struggling");
     struggleUi.hidden = false;
@@ -1244,6 +1339,7 @@ function finishStruggle(generation) {
     const winner = struggleState.playerGood === struggleState.cpuGood ? null :
         struggleState.playerGood > struggleState.cpuGood ? "player" : "cpu";
     struggleState.active = false;
+    clearTwoPlayerInput();
     struggleState.pressedButtons.clear();
     pressedPunchButtons.clear();
     struggleState.lastPlayerButton = null;
@@ -1479,6 +1575,7 @@ function clearPendingRoar() {
 
 function cancelPunch() {
     clearTimeout(punchTimer);
+    clearMotionVisual();
     punchGeneration += 1;
     punchTimer = null;
     punchPhase = null;
@@ -1490,6 +1587,8 @@ function cancelPickup() {
     if (!pickupInProgress) return;
     releaseOpeningClaim("player");
     clearTimeout(pickupTimer);
+    clearTimeout(pickupVisualTimer);
+    pickupVisualTimer = null;
     pickupGeneration += 1;
     pickupTimer = null;
     pickupInProgress = false;
@@ -1514,10 +1613,18 @@ function tryStartPickup() {
     }
     actionInProgress = true;
     pickupInProgress = true;
+    cancelPoseVisual();
     const generation = ++pickupGeneration;
-    showPlayerImage(pickupImage, true);
+    playPlayerFrameSequence(pickupFrames,
+        () => generation === pickupGeneration && !matchState.finished,
+        timer => { pickupVisualTimer = timer; },
+        () => {},
+        () => { pickupVisualTimer = null; });
     pickupTimer = setTimeout(() => {
         if (generation !== pickupGeneration) return;
+        clearTimeout(pickupVisualTimer);
+        pickupVisualTimer = null;
+        pickupGeneration += 1;
         pickupTimer = null;
         pickupInProgress = false;
         actionInProgress = false;
@@ -1549,11 +1656,92 @@ function playPlayerFrameSequence(frames, isCurrent, setTimer, onFrame, onComplet
     showFrame();
 }
 
+// 判定用のタイマーとは独立した、透過PNGの複製表示。
+function clearMotionVisual() {
+    if (motionVisualFrame !== null) cancelAnimationFrame(motionVisualFrame);
+    motionVisualFrame = null;
+    motionVisualGeneration += 1;
+    for (const image of motionVisualLayers) image.remove();
+    motionVisualLayers = [];
+    gameScreen.classList.remove("has-motion-ghosts");
+}
+
+function renderMotionVisual(config, progress) {
+    progress = Math.max(0, Math.min(1, progress));
+    if (!motionVisualLayers.length) {
+        for (const layer of config.layers) {
+            for (let copy = 0; copy < layer.copies; copy += 1) {
+                const image = document.createElement("img");
+                image.className = "motion-ghost";
+                image.src = layer.image;
+                image.alt = "";
+                image.setAttribute("aria-hidden", "true");
+                gameScreen.appendChild(image);
+                motionVisualLayers.push(image);
+            }
+        }
+    }
+    let index = 0;
+    for (const layer of config.layers) {
+        const start = layer.fadeStart ?? 0;
+        const end = layer.fadeEnd ?? 1;
+        const position = Math.max(0, Math.min(1, (progress - start) / (end - start)));
+        const eased = position * position * (3 - 2 * position);
+        const intensity = layer.fade === "in" ? eased : 1 - eased;
+        for (let copy = 0; copy < layer.copies; copy += 1) {
+            const image = motionVisualLayers[index++];
+            image.style.opacity = String(layer.opacity * intensity * (1 - copy / layer.copies));
+            let x = layer.offsetX * copy * intensity;
+            let y = layer.offsetY * copy * intensity;
+            if (config.anchors && config.endPosition) {
+                const { stand, ghost, pose } = config.anchors;
+                // 到達画像は幅42cqw、元画像は幅1086px。両者の可視部分の中心を一致させる。
+                const poseScale = (1920 * 0.42) / 1086;
+                const endX = config.endPosition.x + pose.x * poseScale;
+                const endY = config.endPosition.y + pose.y * poseScale;
+                const startX = layer.fade === "in" ? stand.x - ghost.x : 0;
+                const startY = layer.fade === "in" ? stand.y - ghost.y : 0;
+                const finishX = layer.fade === "in" ? endX - ghost.x : endX - stand.x;
+                const finishY = layer.fade === "in" ? endY - ghost.y : endY - stand.y;
+                const clamp = (value, a, b) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), value));
+                const trail = progress * (1 - progress);
+                x = clamp(startX + (finishX - startX) * progress + x * 1920 / 100 * trail, startX, finishX) / 1920 * 100;
+                y = clamp(startY + (finishY - startY) * progress + y * 1080 / 100 * trail, startY, finishY) / 1080 * 100;
+            }
+            image.style.transform = `translate(${x}cqw, ${y}cqh)`;
+        }
+    }
+    gameScreen.classList.add("has-motion-ghosts");
+}
+
+function animateMotionVisual(config, reverse, generation, isCurrent = () => generation === punchGeneration) {
+    clearMotionVisual();
+    const hold = reverse ? 0 : (config.windupHold ?? 0);
+    const duration = reverse ? config.recovery : config.windup - hold;
+    const visualGeneration = motionVisualGeneration;
+    const startedAt = performance.now();
+    const renderFrame = (now) => {
+        if (visualGeneration !== motionVisualGeneration || !isCurrent() || matchState.finished) return;
+        const elapsed = now - startedAt;
+        if (elapsed < hold) {
+            motionVisualFrame = requestAnimationFrame(renderFrame);
+            return;
+        }
+        const fraction = Math.max(0, Math.min(1, (elapsed - hold) / duration));
+        const progress = reverse ? 1 - fraction : fraction;
+        renderMotionVisual(config, progress);
+        motionVisualFrame = fraction < 1 ? requestAnimationFrame(renderFrame) : null;
+    };
+    if (hold === 0) renderMotionVisual(config, reverse ? 1 : 0);
+    motionVisualFrame = requestAnimationFrame(renderFrame);
+}
+
 function startPunch(button) {
     if (matchState.finished || struggleState.active || actionInProgress || fatigued || playerRoarStunned || playerCounterStunned ||
         stamina < punchStaminaCost || playerState.hasCarrot) return;
     updateEatingProgress();
     if (matchState.finished) return;
+    cancelPoseVisual();
     updateStaminaRecovery();
     actionInProgress = true;
     punchPhase = "windup";
@@ -1563,26 +1751,30 @@ function startPunch(button) {
     const attackDirection = button === 0 ? "left" : "right";
     maybeCpuDodge(attackDirection, generation);
 
-    playPlayerFrameSequence(
-        button === 0 ? leftPunchFrames : rightPunchFrames,
-        () => generation === punchGeneration && !matchState.finished,
-        (timer) => { punchTimer = timer; },
-        (index) => {
-            if (index === 3) {
-                punchPhase = "contact";
-                receiveCpuPunchHit(generation, attackDirection);
-            } else if (index === 4) {
-                punchPhase = "recovery";
-            }
-        },
-        () => {
-            updateStaminaRecovery();
-            punchPhase = null;
-            punchTimer = null;
-            showCurrentState();
-            actionInProgress = false;
-        }
-    );
+    const motion = button === 2 ? rightPunchMotion : leftPunchMotion;
+    animateMotionVisual(motion, false, generation);
+    punchTimer = setTimeout(() => {
+        if (generation !== punchGeneration || matchState.finished) return;
+        clearMotionVisual();
+        punchPhase = "contact";
+        showPlayerImage(punchImages[button]);
+        receiveCpuPunchHit(generation, attackDirection);
+        if (generation !== punchGeneration || matchState.finished) return;
+        punchTimer = setTimeout(() => {
+            if (generation !== punchGeneration || matchState.finished) return;
+            punchPhase = "recovery";
+            animateMotionVisual(motion, true, generation);
+            punchTimer = setTimeout(() => {
+                if (generation !== punchGeneration || matchState.finished) return;
+                clearMotionVisual();
+                updateStaminaRecovery();
+                punchPhase = null;
+                punchTimer = null;
+                showCurrentState();
+                actionInProgress = false;
+            }, motion.recovery);
+        }, motion.contact);
+    }, motion.windup);
 }
 
 function cancelCpuActionForRoar() {
@@ -1645,6 +1837,7 @@ function cancelRoarWarning(target) {
 
 function applyRoarToTarget(target) {
     if (target === "player") {
+        cancelPoseVisual();
         matchScore.hitsTaken += 1;
         if (punchPhase) cancelPunch();
         if (dodgePhase) cancelDodge();
@@ -1698,6 +1891,7 @@ function finishRoarEffect(generation, target) {
     roarState.phase = null;
     roarState.attacker = null;
     if (target === "cpu") {
+        cancelPoseVisual();
         roarInProgress = false;
         actionInProgress = false;
         playerState.mode = playerState.hasCarrot ? "eating" : "normal";
@@ -1721,7 +1915,7 @@ function resolveRoarWarning(generation) {
     clearRoarWarning();
     roarState.phase = "effect";
     applyRoarToTarget(target);
-    if (attacker === "player") showPlayerImage(roarImage, true);
+    if (attacker === "player") playPoseVisual(roarFrames);
     else cpu.src = cpuImages.roar;
     roarState.effectTimer = setTimeout(() => finishRoarEffect(generation, target), roarDuration);
 }
@@ -1733,6 +1927,7 @@ function beginRoar(attacker) {
         if (roarGauge < 100 || roarInProgress) return false;
         updateEatingProgress();
         if (matchState.finished) return false;
+        cancelPoseVisual();
         updateStaminaRecovery();
         if (punchPhase) cancelPunch();
         if (dodgePhase) cancelDodge();
@@ -1741,7 +1936,7 @@ function beginRoar(attacker) {
         clearPendingRoar();
         playerState.mode = playerState.hasCarrot ? "eating" : "normal";
         playerState.sleepHitCount = 0;
-        updateCarrotDisplay();
+        showCurrentState();
         setRoarGauge(0);
         roarInProgress = true;
         actionInProgress = true;
@@ -1804,10 +1999,13 @@ window.addEventListener("keydown", (event) => {
     if (event.repeat || twoPlayerKeys.has(event.code)) return;
     twoPlayerKeys.add(event.code);
     if (struggleState.active) {
-        if ((event.code === "KeyD" || event.code === "KeyF") && performance.now() < struggleState.endsAt) {
-            const button = event.code === "KeyF" ? 0 : 2;
-            if (struggleState.lastCpuButton === null || struggleState.lastCpuButton !== button) struggleState.cpuGood += 1;
+        if ((event.code === "KeyJ" || event.code === "KeyK") && performance.now() < struggleState.endsAt) {
+            const button = event.code === "KeyJ" ? 0 : 2;
+            const good = struggleState.lastCpuButton === null || struggleState.lastCpuButton !== button;
+            if (good) struggleState.cpuGood += 1;
             struggleState.lastCpuButton = button;
+            struggleTwoPlayerFeedback.textContent = `2P ${good ? "GOOD" : "MISS"}`;
+            struggleTwoPlayerFeedback.className = `struggle-feedback ${good ? "good" : "miss"}`;
             startStruggleMusic();
             updateStruggleDisplay();
         }
