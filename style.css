@@ -206,7 +206,7 @@ body {
 .stamina-empty-effect[hidden] { display: none; }
 .stamina-empty-effect {
     position: absolute;
-    width: 20cqw;
+    width: 26cqw;
     height: auto;
     z-index: 15;
     pointer-events: none;
@@ -537,3 +537,50 @@ body {
 .struggle-feedback { margin-top: 2cqh; font-size: 7cqh; min-height: 8cqh; }
 .struggle-feedback.good { color: #ff9a3d; }
 .struggle-feedback.miss { color: #55bcff; }
+
+/* Full-size punch assets are positioned by their head and body, not their canvas. */
+#player[src$="/Punch_left_full.png"],
+.motion-ghost[src$="/Punch_left_full.png"] {
+    inset: auto;
+    width: 52.95cqw;
+    height: 141.8cqh;
+    left: 9.1cqw;
+    top: 25cqh;
+}
+#player[src$="/Punch_right_full.png"],
+.motion-ghost[src$="/Punch_right_full.png"] {
+    inset: auto;
+    width: 64.32cqw;
+    height: 141.8cqh;
+    left: 9.6cqw;
+    top: 25cqh;
+}
+
+/* Completed illustrations already contain the text and button artwork. */
+.intro-screen[hidden] { display: none !important; }
+.intro-screen { position:absolute; inset:0; z-index:40; background-size:100% 100%; background-repeat:no-repeat; }
+#title-screen { display:block; background-image:url('assets/title/トップ画面.png'); background-size:100% 100%; background-position:center; }
+#rules-screen { background-image:var(--rule-background); }
+#two-player-help { background-image:url('assets/title/Rule4.png'); }
+.intro-screen .hotspot, #title-screen .hotspot { position:absolute; margin:0; padding:0; border:0; border-radius:0; background:transparent; cursor:pointer; }
+.intro-screen .hotspot:focus-visible { outline: 0.35cqw solid #335b92; outline-offset: -0.35cqw; }
+#start-button, #two-player-button, #records-button { left:38%; width:24%; height:10%; }
+#start-button { top:50%; } #two-player-button { top:62.5%; } #records-button { top:75%; }
+.rule-tab { top:13.8%; width:22.5%; height:8.5%; }
+.tab1 { left:15%; } .tab2 { left:38.7%; } .tab3 { left:62.4%; }
+#rule-back, #two-player-back { left:24.8%; top:87.4%; width:15.4%; height:9%; }
+#rule-next, #two-player-start { left:60%; top:87.4%; width:15.3%; height:9%; }
+#two-player-start:disabled { cursor:not-allowed; background:rgba(241,246,230,.72); }
+#control-picker { position:absolute; left:6.6%; top:28.6%; width:86.8%; height:57%; padding:1.2% 2%; background:#d4eff8; color:#705944; font:700 2.6cqh/1.3 sans-serif; text-align:center; }
+#picker-status { height:9%; } .control-cards { display:flex; gap:3%; height:69%; }
+.control-card { position:relative; flex:1; border:.4cqw solid #b8cda7; border-radius:2cqw; padding:1%; background:#f1f6ef; color:#705944; font:inherit; cursor:pointer; }
+.control-card strong { display:block; font-size:3.3cqh; } .control-card span { display:block; margin-top:1cqh; font-size:2.4cqh; line-height:1.45; }
+.control-card em { display:block; font-style:normal; margin-top:.5cqh; } .control-card.owner-player { border-color:#ef7471; } .control-card.owner-cpu { border-color:#729ed4; }
+.control-card.owner-player em { color:#c64d4a; } .control-card.owner-cpu em { color:#3069ad; }
+.control-card.cursor-player { outline:.35cqw dashed #ef7471; outline-offset:-.9cqw; } .control-card.cursor-cpu { outline:.35cqw dashed #729ed4; outline-offset:-.9cqw; }
+.picker-actions { display:flex; justify-content:center; gap:3cqw; align-items:center; padding:1cqh; }
+.picker-actions button { border:0; border-radius:2cqh; padding:.6cqh 2cqw; color:#705944; background:#fff8eb; font:inherit; cursor:pointer; }
+
+#picker-ready { position:absolute; left:42%; top:87.5%; width:15%; height:8%; display:grid; place-items:center; background:#d3eff8; color:#705944; font:700 3.2cqh sans-serif; }
+.control-card.owner-player::before, .control-card.owner-cpu::before { position:absolute; left:1cqw; top:1cqh; border-radius:1cqh; padding:.2cqh 1cqw; color:white; }
+.control-card.owner-player::before { content:'1P'; background:#ef7471; } .control-card.owner-cpu::before { content:'2P'; background:#729ed4; }
