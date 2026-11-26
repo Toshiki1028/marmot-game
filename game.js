@@ -78,8 +78,23 @@ const actionTimings = {
 function scaledActionTiming(timing) {
     return Object.fromEntries(Object.entries(timing).map(([key, value]) => [key, Math.round(value * actionTimeScale)]));
 }
-const punchTimings = { left: scaledActionTiming(actionTimings.punch.left), right: scaledActionTiming(actionTimings.punch.right) };
-const dodgeTiming = scaledActionTiming(actionTimings.dodge);
+const punchWarningDuration = 650;
+const punchTimings = {
+    left: { ...scaledActionTiming(actionTimings.punch.left), windup: punchWarningDuration },
+    right: { ...scaledActionTiming(actionTimings.punch.right), windup: punchWarningDuration },
+};
+const dodgeTiming = { windup: 50, hold: 0, contact: 330, recovery: 100 };
+const punchVisualSettings = {
+    arcWidth: 0.6, playerForwardX: 3, cpuForwardX: -3, playerForward: -2, cpuForward: 2,
+    playerScale: 0.8, cpuScale: 1.2, playerOriginX: 37, cpuOriginX: 59,
+    playerHead: { stand: 287, left: 286, right: 283 },
+    cpuHead: [
+        { stand: 236, left: 234, right: 234 },
+        { stand: 224, left: 225, right: 221 },
+        { stand: 176, left: 220, right: 176 },
+    ],
+    sampleInterval: 55, trailLifetime: 220, copies: 3, opacity: 0.32,
+};
 const rightPunchMotion = {
     ...punchTimings.right, windupHold: punchTimings.right.hold,
     layers: [
@@ -106,7 +121,7 @@ const dodgeMotions = {
     right: makeMotionConfig("assets/characters/player/dodge/Dodge_Right_afterimage_1P.png", 1, dodgeTiming.windup, dodgeTiming.hold, dodgeTiming.contact, dodgeTiming.recovery),
 };
 const roarImage = "assets/characters/player/roar/Roar_1P.png";
-const sitAfterimage1 = "assets/characters/player/stand/Stand_1P.png";
+const sitAfterimage1 = normalImage;
 const sitAfterimage2 = "assets/characters/player/sit/Sit_1P.png";
 const sittingMotion = { duration: 300, rotation: 5, scaleY: 0.9, moveDown: 0.5, originX: 37, originY: 100 };
 const sleepingMotion = {
@@ -311,6 +326,7 @@ const struggleState = {
     finishTimer: null, displayTimer: null, cpuTimer: null,
 };
 let struggleAudioContext = null;
+let dodgeSoundContext = null;
 let struggleMusicTimer = null;
 let struggleMusicStep = 0;
 const matchState = {
@@ -325,6 +341,37 @@ const openingState = {
     adjudicationTimer: null,
     feedbackTimer: null,
 };
+
+function unlockDodgeSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!dodgeSoundContext) dodgeSoundContext = new AudioContextClass();
+        if (dodgeSoundContext.state === "suspended") dodgeSoundContext.resume().catch(() => {});
+    } catch (error) { /* 音声が使えない場合も判定には影響させない。 */ }
+}
+
+function playDodgeSuccessSound() {
+    if (!dodgeSoundContext || dodgeSoundContext.state !== "running") return;
+    try {
+        const now = dodgeSoundContext.currentTime;
+        const oscillator = dodgeSoundContext.createOscillator();
+        const gain = dodgeSoundContext.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(650, now);
+        oscillator.frequency.exponentialRampToValueAtTime(1050, now + 0.09);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.035, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        oscillator.connect(gain).connect(dodgeSoundContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 0.13);
+    } catch (error) { /* 音声は表示・判定と独立させる。 */ }
+}
+
+window.addEventListener("pointerdown", unlockDodgeSound, { once: true });
+window.addEventListener("keydown", unlockDodgeSound, { once: true });
+window.addEventListener("wheel", unlockDodgeSound, { once: true, passive: true });
 
 function configureStage(index) {
     stageIndex = index;
@@ -748,6 +795,7 @@ function receiveCpuPunchHit(punchId, attackDirection) {
     if (performance.now() < cpuState.punchInvulnerableUntil) return false;
     if (registerCpuDodge(attackDirection)) {
         refundCpuDodge();
+        playDodgeSuccessSound();
         setCpuRoarGauge(cpuState.roarGauge + dodgeRoarGain);
         return false;
     }
@@ -1190,6 +1238,7 @@ function receivePlayerPunchHit(attackDirection) {
     if (performance.now() < playerState.punchInvulnerableUntil) return false;
     if (registerSuccessfulDodge(attackDirection)) {
         refundPlayerDodge();
+        playDodgeSuccessSound();
         setRoarGauge(roarGauge + dodgeRoarGain);
         return false;
     }
@@ -1888,6 +1937,7 @@ function startCpuPunch(direction) {
     const generation = ++cpuState.punchGeneration;
     const timing = punchTimings[direction];
     const motion = makeCpuMotion("punch", direction, timing.windup, timing.recovery);
+    motion.punchVisual = { image: cpuImages.punch[direction], direction: direction === "left" ? 1 : -1, heads: punchVisualSettings.cpuHead[stageIndex], side: direction };
     motion.windupHold = timing.hold;
     const isVisualCurrent = () => generation === cpuState.punchGeneration && !matchState.finished;
     cpu.src = cpuNormalImage;
@@ -1896,9 +1946,13 @@ function startCpuPunch(direction) {
         if (generation !== cpuState.punchGeneration) return;
         clearMotionVisual(cpuVisual);
         cpu.src = cpuImages.punch[direction];
+        applyPunchTransform(cpu, motion.punchVisual, 1, true);
+        cpuVisual.punchElement = cpu;
         resolveCpuPunchHit(generation, direction);
         setTimeout(() => {
             if (generation !== cpuState.punchGeneration) return;
+            cpu.style.transform = "";
+            cpu.style.transformOrigin = "";
             cpu.src = cpuNormalImage;
             animateMotionVisual(motion, true, generation, isVisualCurrent, cpuVisual);
             setTimeout(() => {
@@ -1920,10 +1974,11 @@ function resolveCpuPunchHit(punchId, direction) {
 function maybeCpuDodge(attackDirection, punchId) {
     if (matchState.finished || gameMode !== "cpu") return;
     if (Math.random() >= cpuAi.dodgeChance) return;
+    const warningAdjustment = Math.max(0, punchTimings[attackDirection].windup - (dodgeDurations.start + dodgeDurations.pose));
     setTimeout(() => {
         if (punchId === punchGeneration && punchPhase === "windup")
             startCpuDodge(dodgeDirectionForAttack[attackDirection]);
-    }, cpuAi.dodgeReaction);
+    }, warningAdjustment + cpuAi.dodgeReaction);
 }
 
 function cpuBrainTick() {
@@ -1980,6 +2035,8 @@ function clearPendingRoar() {
 function cancelPunch() {
     clearTimeout(punchTimer);
     clearMotionVisual();
+    player.style.transform = "";
+    player.style.transformOrigin = "";
     punchGeneration += 1;
     punchTimer = null;
     punchPhase = null;
@@ -2109,11 +2166,72 @@ function clearMotionVisual(visual = playerVisual) {
     visual.generation += 1;
     for (const image of visual.layers) image.remove();
     visual.layers = [];
+    if (visual.punchElement) {
+        visual.punchElement.style.transform = "";
+        visual.punchElement.style.transformOrigin = "";
+        visual.punchElement = null;
+    }
+    visual.punchLeader = null;
+    visual.punchSamples = [];
+    visual.punchLastSample = null;
     gameScreen.classList.remove(visual.className);
+}
+
+function applyPunchTransform(element, config, progress, isCpu) {
+    const settings = punchVisualSettings;
+    const forward = isCpu ? settings.cpuForward : settings.playerForward;
+    const forwardX = isCpu ? settings.cpuForwardX : settings.playerForwardX;
+    const targetScale = isCpu ? settings.cpuScale : settings.playerScale;
+    const x = forwardX * progress + config.direction * settings.arcWidth * Math.sin(Math.PI * progress);
+    const scale = 1 + (targetScale - 1) * progress;
+    // Head positions are measured from the common 1080px frame; compensate for
+    // both transparent margins and scaling around the bottom of that frame.
+    const head = config.heads[config.side] / 1080 * 100;
+    const standHead = config.heads.stand / 1080 * 100;
+    const y = standHead - head + forward * progress - (scale - 1) * (head - 100);
+    element.style.transformOrigin = `${isCpu ? settings.cpuOriginX : settings.playerOriginX}% 100%`;
+    element.style.transform = `translate(${x}cqw, ${y}cqh) scale(${scale})`;
+}
+
+function renderPunchVisual(config, progress, visual) {
+    const settings = punchVisualSettings;
+    const now = performance.now();
+    if (!visual.punchLeader) {
+        const image = document.createElement("img");
+        image.className = visual === cpuVisual ? "motion-ghost cpu-motion-ghost" : "motion-ghost";
+        image.src = config.punchVisual.image;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        gameScreen.appendChild(image);
+        visual.layers.push(image);
+        visual.punchLeader = image;
+        visual.punchSamples = [];
+        visual.punchLastSample = now;
+    }
+    const leader = visual.punchLeader;
+    leader.style.opacity = String(settings.opacity);
+    applyPunchTransform(leader, config.punchVisual, progress, visual === cpuVisual);
+    if (now - visual.punchLastSample >= settings.sampleInterval) {
+        const image = leader.cloneNode();
+        gameScreen.appendChild(image);
+        visual.layers.push(image);
+        visual.punchSamples.push({ image, time: now });
+        visual.punchLastSample = now;
+    }
+    while (visual.punchSamples.length && (visual.punchSamples.length > settings.copies || now - visual.punchSamples[0].time >= settings.trailLifetime)) {
+        const { image } = visual.punchSamples.shift();
+        image.remove();
+        visual.layers.splice(visual.layers.indexOf(image), 1);
+    }
+    for (const sample of visual.punchSamples) {
+        sample.image.style.opacity = String(settings.opacity * (1 - (now - sample.time) / settings.trailLifetime));
+    }
+    gameScreen.classList.add(visual.className);
 }
 
 function renderMotionVisual(config, progress, visual = playerVisual) {
     progress = Math.max(0, Math.min(1, progress));
+    if (config.punchVisual) { renderPunchVisual(config, progress, visual); return; }
     if (!visual.layers.length) {
         for (const layer of config.layers) {
             for (let copy = 0; copy < layer.copies; copy += 1) {
@@ -2188,13 +2306,15 @@ function startPunch(button) {
     const attackDirection = button === 0 ? "left" : "right";
     maybeCpuDodge(attackDirection, generation);
 
-    const motion = button === 2 ? rightPunchMotion : leftPunchMotion;
+    const motion = { ...(button === 2 ? rightPunchMotion : leftPunchMotion), punchVisual: { image: punchImages[button], direction: button === 0 ? -1 : 1, heads: punchVisualSettings.playerHead, side: button === 0 ? "left" : "right" } };
     animateMotionVisual(motion, false, generation);
     punchTimer = setTimeout(() => {
         if (generation !== punchGeneration || matchState.finished) return;
         clearMotionVisual();
         punchPhase = "contact";
         showPlayerImage(punchImages[button]);
+        applyPunchTransform(player, motion.punchVisual, 1, false);
+        playerVisual.punchElement = player;
         receiveCpuPunchHit(generation, attackDirection);
         if (generation !== punchGeneration || matchState.finished) return;
         punchTimer = setTimeout(() => {

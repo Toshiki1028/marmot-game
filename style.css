@@ -196,6 +196,13 @@ body {
     z-index: 4;
 }
 
+/* Match the original head and shoulders; the full-body image extends below the screen. */
+#player[src="assets/characters/プレイヤー.png"] {
+    width: 130cqw;
+    left: -29.1667cqw;
+    top: 25cqh;
+}
+
 .stamina-empty-effect[hidden] { display: none; }
 .stamina-empty-effect {
     position: absolute;
