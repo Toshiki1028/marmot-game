@@ -431,7 +431,6 @@ function showTitle(message) {
     controlChoices = { player: null, cpu: null };
     titleMessage.textContent = message;
     titleScreen.hidden = false;
-    startButton.focus();
 }
 
 function resetRunScore() {
@@ -2839,26 +2838,31 @@ gameScreen.addEventListener("contextmenu", (event) => {
 const rulesScreen = document.getElementById('rules-screen');
 const controlCards = [...document.querySelectorAll('.control-card')];
 const pickerStatus = document.getElementById('picker-status');
-const selectionSummary = document.getElementById('selection-summary');
+const ruleDescriptions = [
+    ['パンチを３回当てると、\n相手がニンジンを落とすよ。\n落ちたにんじんは自動で拾える！', 'パンチをよけることに成功すると、\nスタミナがすこしだけ回復する！', 'にんじんを持ってすわると、\n食べるスピードがUP！\nパンチとよけるはできなくなる。'],
+    ['何もしていないあいだは、\nスタミナが少しずつ回復する。\nパンチやよけるで消費するよ。', 'にんじんを持たずにすわると、\nスタミナの回復スピードがUP！\nほかの操作で起きあがれるよ。', 'スタミナがなくなると、\n少しのあいだ疲れて動けなくなる。\n使いきる前にひと休みしよう。'],
+    ['ほえるゲージをMAXまで使って、\n相手の動きを足止めできるよ！\n相手のにんじんも落とせる。', '「WARNING」の表示に合わせて、\nすわる・ねむるをすると、\nほえるを防ぐことができるよ！', 'にんじんを同時にひろうと、\nせり合いモードになる。\n勝ってにんじんを手に入れよう！'],
+];
 function showRule(page) {
     rulePage = page; titleScreen.hidden = true; twoPlayerHelp.hidden = true; rulesScreen.hidden = false;
+    rulesScreen.querySelectorAll('.rule-descriptions p').forEach((item, index) => { item.textContent = ruleDescriptions[page - 1][index]; });
     rulesScreen.style.setProperty('--rule-background', 'url("assets/title/Rule' + page + '.png")');
     document.getElementById('rule-next').setAttribute('aria-label', page === 3 ? '操作を選ぶ' : 'つぎへ');
 }
 function renderControlPicker() {
-    const current = !controlChoices.player ? 'player' : gameMode === '2p' && !controlChoices.cpu ? 'cpu' : null;
-    pickerStatus.textContent = current ? (current === 'player' ? '1P：操作を選んで決定' : '2P：操作を選んで決定') : '準備完了！';
-    selectionSummary.textContent = current ? '' : '準備OK！';
+    const ready = !!controlChoices.player;
+    pickerStatus.textContent = ready ? '準備完了！' : '1P：操作を選んで決定';
     for (const card of controlCards) {
         const value = card.dataset.control;
         const owner = controlChoices.player === value ? 'player' : controlChoices.cpu === value ? 'cpu' : null;
-        card.classList.toggle('owner-player', owner === 'player'); card.classList.toggle('owner-cpu', owner === 'cpu');
-        card.querySelector('em').textContent = owner ? (owner === 'player' ? '1P' : '2P') + ' が使用中　準備OK！' : '選んで決定';
-        card.disabled = !!owner || !current;
+        card.classList.toggle('owner-player', owner === 'player');
+        card.classList.toggle('owner-cpu', owner === 'cpu');
+        card.querySelector('em').textContent = owner ? (owner === 'player' ? '1P' : '2P') + ' が使用中' : '選んで決定';
+        card.setAttribute('aria-pressed', String(owner === 'player'));
         card.classList.remove('cursor-player', 'cursor-cpu');
     }
-    twoPlayerStart.disabled = !!current;
-    document.getElementById('picker-ready').textContent = current ? '操作を選択中' : '準備完了';
+    twoPlayerStart.disabled = !ready;
+    document.getElementById('picker-ready').textContent = ready ? '準備完了' : '操作を選択中';
 }
 function beginSetup(mode) { gameMode = mode; controlChoices = { player:null, cpu:null }; showRule(1); }
 startButton.addEventListener('click', () => beginSetup('cpu'));
@@ -2870,16 +2874,16 @@ document.getElementById('rule-next').addEventListener('click', () => {
     else { rulesScreen.hidden = true; twoPlayerHelp.hidden = false; renderControlPicker(); }
 });
 controlCards.forEach(card => {
-    const cursor = () => { const current = !controlChoices.player ? 'player' : gameMode === '2p' && !controlChoices.cpu ? 'cpu' : null; if (current && !card.disabled) card.classList.add('cursor-' + current); };
+    const cursor = () => card.classList.add('cursor-player');
     card.addEventListener('mouseenter', cursor); card.addEventListener('focus', cursor);
-    card.addEventListener('mouseleave', () => card.classList.remove('cursor-player','cursor-cpu')); card.addEventListener('blur', () => card.classList.remove('cursor-player','cursor-cpu'));
+    card.addEventListener('mouseleave', () => card.classList.remove('cursor-player')); card.addEventListener('blur', () => card.classList.remove('cursor-player'));
     card.addEventListener('click', () => {
-        const current = !controlChoices.player ? 'player' : gameMode === '2p' && !controlChoices.cpu ? 'cpu' : null;
-        if (!current || Object.values(controlChoices).includes(card.dataset.control)) return;
-        controlChoices[current] = card.dataset.control; renderControlPicker();
+        const value = card.dataset.control;
+        const player = controlChoices.player === value ? null : value;
+        controlChoices = { player, cpu: player && gameMode === '2p' ? (player === 'keyboard' ? 'mouse' : 'keyboard') : null };
+        renderControlPicker();
     });
 });
-document.getElementById('choose-reset').addEventListener('click', () => { controlChoices = {player:null,cpu:null}; renderControlPicker(); });
 twoPlayerBack.addEventListener('click', () => showRule(3));
 twoPlayerStart.addEventListener('click', () => {
     if (!controlChoices.player || (gameMode === '2p' && !controlChoices.cpu)) return;

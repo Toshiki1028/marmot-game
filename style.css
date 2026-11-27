@@ -558,29 +558,82 @@ body {
 
 /* Completed illustrations already contain the text and button artwork. */
 .intro-screen[hidden] { display: none !important; }
-.intro-screen { position:absolute; inset:0; z-index:40; background-size:100% 100%; background-repeat:no-repeat; }
+.intro-screen { position:absolute; inset:0; z-index:40; background-color:#d4eff8; background-size:100% 100%; background-repeat:no-repeat; }
 #title-screen { display:block; background-image:url('assets/title/トップ画面.png'); background-size:100% 100%; background-position:center; }
 #rules-screen { background-image:var(--rule-background); }
+.rule-descriptions { position:absolute; inset:0; pointer-events:none; }
+.rule-descriptions p { position:absolute; top:68.2%; width:27%; height:14.5%; margin:0; padding:1% 0 0; box-sizing:border-box; background:#f2f7f2; color:#765b46; font:700 2.8cqh/1.52 sans-serif; text-align:center; white-space:pre-line; }
+.rule-descriptions p:nth-child(1) { left:7.2%; }
+.rule-descriptions p:nth-child(2) { left:36.5%; }
+.rule-descriptions p:nth-child(3) { left:65.8%; }
 #two-player-help { background-image:url('assets/title/Rule4.png'); }
 .intro-screen .hotspot, #title-screen .hotspot { position:absolute; margin:0; padding:0; border:0; border-radius:0; background:transparent; cursor:pointer; }
-.intro-screen .hotspot:focus-visible { outline: 0.35cqw solid #335b92; outline-offset: -0.35cqw; }
+.intro-screen .hotspot:focus-visible { outline: 0.25cqw solid #335b92; outline-offset: 0.15cqw; border-radius: 5cqh; }
 #start-button, #two-player-button, #records-button { left:38%; width:24%; height:10%; }
 #start-button { top:50%; } #two-player-button { top:62.5%; } #records-button { top:75%; }
 .rule-tab { top:13.8%; width:22.5%; height:8.5%; }
 .tab1 { left:15%; } .tab2 { left:38.7%; } .tab3 { left:62.4%; }
 #rule-back, #two-player-back { left:24.8%; top:87.4%; width:15.4%; height:9%; }
 #rule-next, #two-player-start { left:60%; top:87.4%; width:15.3%; height:9%; }
-#two-player-start:disabled { cursor:not-allowed; background:rgba(241,246,230,.72); }
-#control-picker { position:absolute; left:6.6%; top:28.6%; width:86.8%; height:57%; padding:1.2% 2%; background:#d4eff8; color:#705944; font:700 2.6cqh/1.3 sans-serif; text-align:center; }
-#picker-status { height:9%; } .control-cards { display:flex; gap:3%; height:69%; }
-.control-card { position:relative; flex:1; border:.4cqw solid #b8cda7; border-radius:2cqw; padding:1%; background:#f1f6ef; color:#705944; font:inherit; cursor:pointer; }
-.control-card strong { display:block; font-size:3.3cqh; } .control-card span { display:block; margin-top:1cqh; font-size:2.4cqh; line-height:1.45; }
-.control-card em { display:block; font-style:normal; margin-top:.5cqh; } .control-card.owner-player { border-color:#ef7471; } .control-card.owner-cpu { border-color:#729ed4; }
+/* These buttons cover the artwork so their colors can respond to input. */
+#title-screen .hotspot, #rule-back, #rule-next, #two-player-back, #two-player-start {
+    display: grid; place-items: center; box-sizing: border-box;
+    border: .2cqw solid #a2b487; border-radius: 5cqh;
+    background: #fcf7eb; color: #765b46;
+    font: 900 4cqh/1 sans-serif;
+    transition: background-color 120ms, color 120ms, border-color 120ms, box-shadow 120ms;
+}
+/* Cover the original button outline just outside the interactive overlay. */
+#title-screen .hotspot {
+    border-radius: 4cqh;
+    box-shadow: 0 0 0 .6cqh #d4eff8;
+}
+#title-screen button.hotspot:active {
+    box-shadow: 0 0 0 .6cqh #d4eff8, inset 0 .6cqh 1cqh rgba(48, 55, 35, .35);
+}
+#title-screen .hotspot::before, #rule-back::before, #rule-next::before,
+#two-player-back::before, #two-player-start::before {
+    content: attr(aria-label); transition: transform 100ms;
+}
+#rule-next::before { content: 'つぎへ'; }
+#two-player-start::before { content: 'バトル'; }
+#title-screen .hotspot:hover, #rule-back:hover, #rule-next:hover,
+#two-player-back:hover, #two-player-start:not(:disabled):hover {
+    background: #829b66; color: white; border-color: white;
+}
+#title-screen .hotspot:active, #rule-back:active, #rule-next:active,
+#two-player-back:active, #two-player-start:not(:disabled):active {
+    box-shadow: inset 0 .6cqh 1cqh rgba(48, 55, 35, .35);
+}
+#title-screen .hotspot:active::before, #rule-back:active::before, #rule-next:active::before,
+#two-player-back:active::before, #two-player-start:not(:disabled):active::before {
+    transform: translateY(.4cqh) scale(.97);
+}
+#two-player-start:disabled { cursor: not-allowed; color: #a9a99b; background: #e7e9dc; }
+.rule-tab:active { background: rgba(60, 75, 45, .22); border-radius: 5cqh; }
+.control-card:not(:disabled) { transition: transform 100ms, box-shadow 100ms; }
+.control-card:not(:disabled):active { transform: translateY(.4cqh) scale(.98); box-shadow: inset 0 .5cqh 1cqh rgba(48, 55, 35, .25); }
+@media (prefers-reduced-motion: reduce) {
+    .intro-screen button { transition: none !important; }
+}
+/* Rule4 uses a 1920 × 1080 canvas; all overlay coordinates use that canvas. */
+#control-picker { position:absolute; inset:0; color:#705944; font:700 2.6cqh/1.2 sans-serif; }
+#picker-status { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.control-cards { position:absolute; left:6.67%; top:29.17%; width:87%; height:56.3%; display:flex; gap:3.3%; }
+.control-card { position:relative; flex:1; min-width:0; height:100%; overflow:hidden; padding:0; border:.2cqw solid #a2b487; border-radius:3.2cqw; background:#f0f6f0; color:#705944; font:inherit; text-align:center; cursor:pointer; box-shadow:0 0 0 .2cqh #d4eff8; }
+.control-card strong { position:absolute; top:10%; left:19%; width:62%; font-size:4cqh; white-space:nowrap; }
+.control-card em { position:absolute; top:22%; left:20%; width:60%; font-style:normal; font-size:2.3cqh; }
+.control-icon { position:absolute; right:2%; top:2%; width:8.6cqw; height:14.5cqh; background-image:url('assets/title/Rule4.png'); background-size:100cqw 100cqh; background-repeat:no-repeat; }
+.keyboard-icon { background-position:-39cqw -31cqh; }
+.mouse-icon { background-position:-84cqw -30cqh; }
+.control-guide { position:absolute; top:30.5%; left:10%; width:80%; display:grid; gap:2.1cqh; font-size:3cqh; font-weight:900; text-align:left; }
+.control-guide > span:not(.control-struggle) { display:grid; grid-template-columns:43% 1fr; align-items:center; gap:2cqw; white-space:nowrap; }
+.control-guide kbd { border:.15cqw solid #ad9272; border-radius:1.6cqh; background:#fcf7eb; color:inherit; font:inherit; font-size:2.6cqh; font-weight:900; line-height:4cqh; padding:0 .5cqw; text-align:center; white-space:nowrap; }
+.control-struggle { position:absolute; top:27.8cqh; left:-5%; width:110%; padding-top:2.8cqh; border-top:.15cqw solid #ad9272; text-align:center; font-size:2.8cqh; font-weight:900; white-space:nowrap; }
+.control-card.owner-player { border:.4cqw solid #ef7471; } .control-card.owner-cpu { border:.4cqw solid #729ed4; }
 .control-card.owner-player em { color:#c64d4a; } .control-card.owner-cpu em { color:#3069ad; }
-.control-card.cursor-player { outline:.35cqw dashed #ef7471; outline-offset:-.9cqw; } .control-card.cursor-cpu { outline:.35cqw dashed #729ed4; outline-offset:-.9cqw; }
-.picker-actions { display:flex; justify-content:center; gap:3cqw; align-items:center; padding:1cqh; }
-.picker-actions button { border:0; border-radius:2cqh; padding:.6cqh 2cqw; color:#705944; background:#fff8eb; font:inherit; cursor:pointer; }
+.control-card.cursor-player { outline:.35cqw dashed #ef7471; outline-offset:-1cqw; } .control-card.cursor-cpu { outline:.35cqw dashed #729ed4; outline-offset:-1cqw; }
 
-#picker-ready { position:absolute; left:42%; top:87.5%; width:15%; height:8%; display:grid; place-items:center; background:#d3eff8; color:#705944; font:700 3.2cqh sans-serif; }
-.control-card.owner-player::before, .control-card.owner-cpu::before { position:absolute; left:1cqw; top:1cqh; border-radius:1cqh; padding:.2cqh 1cqw; color:white; }
+#picker-ready { position:absolute; left:42%; top:87.5%; width:15%; height:8%; display:grid; place-items:center; background:#d3eff8; color:#705944; font:900 3.2cqh sans-serif; }
+.control-card.owner-player::before, .control-card.owner-cpu::before { position:absolute; left:4%; top:5%; border-radius:4cqh; padding:.3cqh 2cqw; color:white; font-size:4cqh; }
 .control-card.owner-player::before { content:'1P'; background:#ef7471; } .control-card.owner-cpu::before { content:'2P'; background:#729ed4; }

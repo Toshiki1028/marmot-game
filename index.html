@@ -65,13 +65,14 @@
         <div id="finish-label" aria-live="assertive" hidden>FINISH</div>
         <div id="result-label" aria-live="assertive" hidden></div>
         <div id="start-label" role="status" aria-live="assertive" hidden><img id="start-image" alt=""></div>
-        <div id="title-screen" class="intro-screen" hidden>
+        <div id="title-screen" class="intro-screen">
             <span id="title-message" hidden></span>
             <button id="start-button" class="hotspot" aria-label="ひとりであそぶ"></button>
             <button id="two-player-button" class="hotspot" aria-label="ふたりであそぶ"></button>
             <button id="records-button" class="hotspot" aria-label="ベスト記録"></button>
         </div>
         <section id="rules-screen" class="intro-screen" hidden aria-label="あそびのルール">
+            <div class="rule-descriptions" aria-hidden="true"><p></p><p></p><p></p></div>
             <button class="hotspot rule-tab tab1" data-rule="1" aria-label="基本のあそび方"></button>
             <button class="hotspot rule-tab tab2" data-rule="2" aria-label="スタミナと回復"></button>
             <button class="hotspot rule-tab tab3" data-rule="3" aria-label="ほえる・せり合い"></button>
@@ -82,10 +83,15 @@
             <div id="control-picker">
               <div id="picker-status" aria-live="polite"></div>
               <div class="control-cards">
-                <button class="control-card" data-control="keyboard"><strong>キーボード操作</strong><span>F / D：左右パンチ<br>J / K：左右によける<br>Space：すわる・ねむる<br>D＋F長押し：ほえる<br>せり合い：J / K</span><em></em></button>
-                <button class="control-card" data-control="mouse"><strong>マウス操作</strong><span>左右クリック：パンチ<br>ホイール上下：左右によける<br>ホイールクリック：すわる<br>左右クリック：ほえる<br>せり合い：クリック / ホイール</span><em></em></button>
+                <button class="control-card" data-control="keyboard" type="button">
+                  <strong>キーボード操作</strong><span class="control-icon keyboard-icon" aria-hidden="true"></span><em></em>
+                  <span class="control-guide"><span><kbd>F / D</kbd> 左右パンチ</span><span><kbd>J / K</kbd> 左右によける</span><span><kbd>Space</kbd> すわる・ねむる</span><span><kbd>D＋F 長押し</kbd> ほえる</span><span class="control-struggle">せり合い：J / K を交互に連打</span></span>
+                </button>
+                <button class="control-card" data-control="mouse" type="button">
+                  <strong>マウス操作</strong><span class="control-icon mouse-icon" aria-hidden="true"></span><em></em>
+                  <span class="control-guide"><span><kbd>左右クリック</kbd> パンチ</span><span><kbd>ホイール上下</kbd> 左右によける</span><span><kbd>ホイールクリック</kbd> すわる</span><span><kbd>左右同時押し</kbd> ほえる</span><span class="control-struggle">せり合い：クリック / ホイール</span></span>
+                </button>
               </div>
-              <div class="picker-actions"><button id="choose-reset" type="button">選びなおす</button><span id="selection-summary"></span></div>
             </div>
             <div id="picker-ready" aria-live="polite"></div>
             <button id="two-player-back" class="hotspot" aria-label="もどる"></button>
